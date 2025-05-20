@@ -1,0 +1,6 @@
+test_binaries/
+venv/
+*.sw*
+poetry*
+*.pyc
+*/__pycache__/
