@@ -1,6 +1,6 @@
 from metalware_sdk.havoc_client import HavocClient
 from metalware_sdk.havoc_common_schema import *
-from unittest import TestCase, main
+from unittest import TestCase, main, skip
 
 def pretty_memory_config(memory_config: MemoryConfig) -> str:
   result = ""
@@ -347,11 +347,12 @@ class TestHavoc(TestCase):
         self.assertEqual(image.patches[0].address, 0x20000000)
         self.assertEqual(image.patches[0].patch_type, PatchType.NOP)
 
-    def infer_and_dry_run(self, file_path: str, manual_entry_address: int = None, manual_patches: List[Patch] = None):
+    def infer_and_dry_run(self, file_path: str, manual_entry_address: int = None, manual_memories: List[Memory] = []):
         client = HavocClient("http://localhost:8080")
         file_metadata = client.upload_file(file_path)
         memory_config = client.infer_memory_config(file_hash=file_metadata.hash)
         if manual_entry_address is not None: memory_config.entry_address = manual_entry_address
+        for memory in manual_memories: memory_config.memory_layout.append(memory)
         project_config = ProjectConfig(memory_config)
         project_name = file_path.split("/")[-1].split(".")[0] + ".tmp"
         client.create_project(project_name, project_config, overwrite=True)
@@ -373,7 +374,26 @@ class TestHavoc(TestCase):
     def test_p2im_console_elf_infer(self):
         self.infer_and_dry_run("test_binaries/p2im.console.elf", manual_entry_address=0x0)
 
-    # TODO: test fellow, arducopter, alias
+    def test_arducopter_elf_infer(self):
+        self.infer_and_dry_run("test_binaries/arducopter.elf")
+
+    def test_silabs_bt_soc_elf_infer(self):
+        self.infer_and_dry_run("test_binaries/silabs_bt_soc_blinky_3.out")
+
+    def test_simple_rom_unaligned_isr(self):
+        self.infer_and_dry_run("test_binaries/simple-rom-unaligned-isr-table.elf")
+
+    @skip("Skipping due to memory overlap")
+    def test_hsm_host_elf_infer(self):
+        manual_memories = [
+            Memory(base_addr=0x0, size=0x100000, memory_type=MemoryType.RAM),
+            Memory(base_addr=0x20010000, size=0x10000, memory_type=MemoryType.RAM),
+            Memory(base_addr=0x20100000, size=0x100000, memory_type=MemoryType.RAM),
+        ]
+        self.infer_and_dry_run("test_binaries/hsm_host_test_sb_hsm_pic32cz_ca90.X.debug.elf", manual_memories=manual_memories)
+
+    def test_px4_elf_infer(self):
+        self.infer_and_dry_run("test_binaries/px4_fmu-v5_default.elf", manual_entry_address=0x8008000)
 
 if __name__ == "__main__":
     main()
