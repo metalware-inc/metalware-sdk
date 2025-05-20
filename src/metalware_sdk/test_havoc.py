@@ -4,8 +4,10 @@ from unittest import TestCase, main
 
 def pretty_memory_config(memory_config: MemoryConfig) -> str:
   result = ""
+  result += f"Memory layout:\n"
   for memory in memory_config.memory_layout:
-    result += f"{hex(memory.base_addr)} {hex(memory.size)} {memory.memory_type} {memory.file}\n"
+    result += f" - {hex(memory.base_addr)} {hex(memory.size)} {memory.memory_type} {memory.file}\n"
+  result += f"Entry address: {hex(memory_config.entry_address)}\n"
   return result
 
 def get_rom_addr(memory_config: MemoryConfig) -> int:
@@ -78,8 +80,6 @@ class TestHavoc(TestCase):
 
         memory_config = client.infer_memory_config(file_hash=file_metadata.hash)
         memory_config.entry_address = 0x400000
-
-        print(pretty_memory_config(memory_config))
 
         project_config = ProjectConfig(memory_config)
         client.create_project("zephyr-10064.tmp", project_config, overwrite=True)
@@ -331,19 +331,49 @@ class TestHavoc(TestCase):
         image = client.get_project_image(project_name="dummy.tmp", image_name="default")
         self.assertEqual(image.image_arch, ImageArch.CORTEX_M)
         self.assertEqual(image.image_format.elf, file_metadata.hash)
+        self.assertEqual(len(image.patches), 0)
 
         # Upload another elf
         file_metadata = client.upload_file("test_binaries/zephyr-10064.elf")
 
         # Update image
-        client.update_project_image(project_name="dummy.tmp", image_name="default", image_config=ImageConfig(image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash)))
+        client.update_project_image(project_name="dummy.tmp", image_name="default", image_config=ImageConfig(image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash), patches=[Patch(address=0x20000000, patch_type=PatchType.NOP)]))
 
         # Get image config again
         image = client.get_project_image(project_name="dummy.tmp", image_name="default")
         self.assertEqual(image.image_arch, ImageArch.CORTEX_M)
         self.assertEqual(image.image_format.elf, file_metadata.hash)
+        self.assertEqual(len(image.patches), 1)
+        self.assertEqual(image.patches[0].address, 0x20000000)
+        self.assertEqual(image.patches[0].patch_type, PatchType.NOP)
 
-    # TODO: test portenta, dryer, mcf pulse, adi ble, fellow, p2im.console, arducopter, alias
+    def infer_and_dry_run(self, file_path: str, manual_entry_address: int = None, manual_patches: List[Patch] = None):
+        client = HavocClient("http://localhost:8080")
+        file_metadata = client.upload_file(file_path)
+        memory_config = client.infer_memory_config(file_hash=file_metadata.hash)
+        if manual_entry_address is not None: memory_config.entry_address = manual_entry_address
+        project_config = ProjectConfig(memory_config)
+        project_name = file_path.split("/")[-1].split(".")[0] + ".tmp"
+        client.create_project(project_name, project_config, overwrite=True)
+        client.create_image(project_name=project_name, image_name="default", image_config=ImageConfig(image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash)))
+        client.start_run(project_name=project_name, config=RunConfig(image_name="default", dry_run=True))
+
+    def test_portenta_elf_infer(self):
+        self.infer_and_dry_run("test_binaries/portenta_STM32H747AII6_CM7.elf")
+    
+    def test_dryer_elf_infer(self):
+        self.infer_and_dry_run("test_binaries/DMC_DryerController_application.elf")
+
+    def test_mcf_pulse_elf_infer(self):
+        self.infer_and_dry_run("test_binaries/MCFPulseOxiTemp.X.debug.elf")
+
+    def test_adi_ble_elf_infer(self):
+        self.infer_and_dry_run("test_binaries/ADI_periph_max32655.elf")
+
+    def test_p2im_console_elf_infer(self):
+        self.infer_and_dry_run("test_binaries/p2im.console.elf", manual_entry_address=0x0)
+
+    # TODO: test fellow, arducopter, alias
 
 if __name__ == "__main__":
     main()

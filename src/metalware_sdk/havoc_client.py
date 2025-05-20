@@ -18,7 +18,6 @@ class HavocClient:
       resp.raise_for_status()
       return resp
     except requests.exceptions.RequestException as e:
-      # print the response content
       raise RuntimeError(f"Request to {url} failed: {str(e)}. Response: {resp.text}")
 
   def upload_file(self, file_path: str, label: str = "unnamed") -> FileMetadata:
@@ -54,7 +53,6 @@ class HavocClient:
     
     result = resp.json()
     if isinstance(result, dict) and 'Ok' in result:
-      print(result['Ok'])
       return MemoryConfig.from_dict(result['Ok'])
     else:
       raise RuntimeError(f"Memory config inference failed: {result.get('Err', 'Unknown error')}")
@@ -226,7 +224,6 @@ class HavocClient:
       f'/project/{project_name}/image/{image_name}/symbols'
     )
     result = resp.json()
-    print(result)
     if isinstance(result, dict) and 'Err' in result:
       raise RuntimeError(f"Symbol retrieval failed: {result['Err']}")
     else: return [Symbol.from_dict(symbol) for symbol in result['Ok']]
