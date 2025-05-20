@@ -72,6 +72,39 @@ class HavocClient:
       raise RuntimeError(f"Image creation failed: {result['Err']}")
     else: return result['Ok']
 
+  def update_project_image(self, project_name: str, image_name: str, image_config: ImageConfig) -> None:
+    resp = self._make_request(
+      'POST',
+      f'/project/{project_name}/image/{image_name}',
+      json=image_config.to_dict()
+    )
+    
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Image update failed: {result['Err']}")
+
+  def get_project_image(self, project_name: str, image_name: str) -> ImageConfig:
+    resp = self._make_request(
+      'GET',
+      f'/project/{project_name}/image/{image_name}'
+    )
+
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Image retrieval failed: {result['Err']}")
+    else: return ImageConfig.from_dict(result['Ok'])
+
+  def get_project_images(self, project_name: str) -> List[str]:
+    resp = self._make_request(
+      'GET',
+      f'/project/{project_name}/images'
+    )
+
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Image retrieval failed: {result['Err']}")
+    else: return result['Ok']
+
   def delete_image(self, project_name: str, image_name: str) -> None:
     resp = self._make_request(
       'POST',

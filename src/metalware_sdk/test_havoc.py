@@ -296,10 +296,54 @@ class TestHavoc(TestCase):
         # Get image symbols
         symbols = client.get_image_symbols(project_name="dummy.tmp", image_name="default")
         self.assertEqual(len(symbols), 0)
+
+    def test_get_project_images(self):
+        client = HavocClient("http://localhost:8080")
+
+        # Create project
+        client.create_project("dummy.tmp", ProjectConfig(MemoryConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)], entry_address=0x400000)), overwrite=True)
         
+        # Get project images
+        images = client.get_project_images(project_name="dummy.tmp")
+        self.assertEqual(len(images), 1)
+        self.assertEqual(images[0], "default")
+        
+        # Delete image
+        client.delete_image(project_name="dummy.tmp", image_name="default")
+
+        # Get project images again
+        images = client.get_project_images(project_name="dummy.tmp")
+        self.assertEqual(len(images), 0)
+
+    def test_update_project_image(self):
+        client = HavocClient("http://localhost:8080")
+
+        # Create project
+        client.create_project("dummy.tmp", ProjectConfig(MemoryConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)], entry_address=0x400000)), overwrite=True)
+
+        # Upload elf
+        file_metadata = client.upload_file("test_binaries/alias-test.elf")
+
+        # Create image
+        client.create_image(project_name="dummy.tmp", image_name="default", image_config=ImageConfig(image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash)))
+
+        # Get image
+        image = client.get_project_image(project_name="dummy.tmp", image_name="default")
+        self.assertEqual(image.image_arch, ImageArch.CORTEX_M)
+        self.assertEqual(image.image_format.elf, file_metadata.hash)
+
+        # Upload another elf
+        file_metadata = client.upload_file("test_binaries/zephyr-10064.elf")
+
+        # Update image
+        client.update_project_image(project_name="dummy.tmp", image_name="default", image_config=ImageConfig(image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash)))
+
+        # Get image config again
+        image = client.get_project_image(project_name="dummy.tmp", image_name="default")
+        self.assertEqual(image.image_arch, ImageArch.CORTEX_M)
+        self.assertEqual(image.image_format.elf, file_metadata.hash)
+
     # TODO: test portenta, dryer, mcf pulse, adi ble, fellow, p2im.console, arducopter, alias
-    # TODO: test image config update
-    # TODO: test get project images
 
 if __name__ == "__main__":
     main()
