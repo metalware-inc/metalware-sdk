@@ -211,9 +211,37 @@ class TestHavoc(TestCase):
         with self.assertRaises(Exception) as context:
             client.get_project_config("dummy-2")
 
-    # TODO: test portenta, dryer, mcf pulse, adi ble, fellow, p2im.console, arducopter
+    def test_multi_segment_raw_image(self):
+        client = HavocClient("http://localhost:8080")
+
+        # Create project
+        memory_config = MemoryConfig(memory_layout=[
+            Memory(base_addr=0x8000000, size=0x8000, memory_type=MemoryType.ROM),
+            Memory(base_addr=0x8008000, size=0x8000, memory_type=MemoryType.ROM),
+            Memory(base_addr=0x20000000, size=0x100000, memory_type=MemoryType.RAM),
+            Memory(base_addr=0x40000000, size=0x100000, memory_type=MemoryType.MMIO),
+        ], entry_address=0x8000000)
+
+        client.create_project("multi-segment-raw-image.tmp", ProjectConfig(memory_config), overwrite=True)
+
+        # Upload ROM
+        bootloader = client.upload_file("test_binaries/simple-bootloader/bootloader.bin")
+        app = client.upload_file("test_binaries/simple-bootloader/app.bin")
+
+        # Create image
+        raw_image = RawImage(segments=[
+            RawImageSegment(address=0x8000000, hash=bootloader.hash),
+            RawImageSegment(address=0x8008000, hash=app.hash)
+        ])
+
+        image_config = ImageConfig(image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(raw=raw_image))
+        client.create_image(project_name="multi-segment-raw-image.tmp", image_name="default", image_config=image_config)
+
+        # Start run
+        client.start_run(project_name="multi-segment-raw-image.tmp", config=RunConfig(image_name="default", dry_run=True))
+
+    # TODO: test portenta, dryer, mcf pulse, adi ble, fellow, p2im.console, arducopter, alias
     # TODO: test image config update
-    # TODO: test multi-segment RAW image
     # TODO: test set image symbols
     # TODO: test get image symbols
 
