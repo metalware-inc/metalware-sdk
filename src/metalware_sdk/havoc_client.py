@@ -72,13 +72,13 @@ class HavocClient:
       raise RuntimeError(f"Image creation failed: {result['Err']}")
     else: return result['Ok']
 
-  def create_project(self, project_name: str, config: ProjectConfig, is_overwritable_temp: bool = False) -> None:
+  def create_project(self, project_name: str, config: ProjectConfig, overwrite: bool = False) -> None:
     resp = self._make_request(
       'POST',
       '/create-project',
       params={
         'project_name': project_name,
-        'is_overwritable_temp': str(is_overwritable_temp).lower()
+        'overwrite': str(overwrite).lower()
       },
       json=config.to_dict()
     )
@@ -86,6 +86,50 @@ class HavocClient:
     result = resp.json()
     if isinstance(result, dict) and 'Err' in result:
       raise RuntimeError(f"Project creation failed: {result['Err']}")
+
+  def rename_project(self, project_name: str, new_name: str) -> None:
+    resp = self._make_request(
+      'POST',
+      f'/project/{project_name}/rename',
+      json=new_name
+    )
+    
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Project renaming failed: {result['Err']}")
+
+  def delete_project(self, project_name: str) -> None:
+    resp = self._make_request(
+      'POST',
+      f'/project/{project_name}/delete'
+    )
+    
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Project deletion failed: {result['Err']}")
+
+  def get_project_config(self, project_name: str) -> ProjectConfig:
+    resp = self._make_request(
+      'GET',
+      f'/project/{project_name}/config'
+    )
+    
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Project config retrieval failed: {result['Err']}")
+    else: return ProjectConfig.from_dict(result['Ok'])
+
+  def set_project_config(self, project_name: str, config: ProjectConfig) -> None:
+    resp = self._make_request(
+      'POST',
+      f'/project/{project_name}/config',
+      json=config.to_dict()
+    )
+    
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Project config setting failed: {result['Err']}")
+    else: return result['Ok']
 
   def start_run(self, project_name: str, config: RunConfig) -> None:
     resp = self._make_request(

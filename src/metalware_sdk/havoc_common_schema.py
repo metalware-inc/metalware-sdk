@@ -529,7 +529,7 @@ class ProjectConfig:
         assert isinstance(obj, dict)
         fuzzer_config = from_union([FuzzerConfig.from_dict, from_none], obj.get("fuzzer_config"))
         memory_config = MemoryConfig.from_dict(obj.get("memory_config"))
-        return ProjectConfig(fuzzer_config, memory_config)
+        return ProjectConfig(memory_config, fuzzer_config)
 
     def to_dict(self) -> dict:
         result: dict = {}
