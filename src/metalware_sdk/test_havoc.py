@@ -240,10 +240,66 @@ class TestHavoc(TestCase):
         # Start run
         client.start_run(project_name="multi-segment-raw-image.tmp", config=RunConfig(image_name="default", dry_run=True))
 
+    def test_set_get_image_symbols(self):
+        client = HavocClient("http://localhost:8080")
+
+        # Create project
+        client.create_project("dummy.tmp", ProjectConfig(MemoryConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)], entry_address=0x400000)), overwrite=True)
+
+        # Upload elf
+        file_metadata = client.upload_file("test_binaries/alias-test.elf")
+
+        # Create image
+        client.create_image(project_name="dummy.tmp", image_name="default", image_config=ImageConfig(image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash)))
+
+        # Set image symbols
+        client.set_image_symbols(project_name="dummy.tmp", image_name="default", symbols=[Symbol(name="symbol1", address=0x1000, size=0x4), Symbol(name="symbol2", address=0x2000, size=0x4)])
+
+        # Get image symbols
+        symbols = client.get_image_symbols(project_name="dummy.tmp", image_name="default")
+        self.assertEqual(len(symbols), 2)
+        self.assertEqual(symbols[0].name, "symbol1")
+        self.assertEqual(symbols[0].address, 0x1000)
+        self.assertEqual(symbols[0].size, 0x4)
+        self.assertEqual(symbols[1].name, "symbol2")
+        self.assertEqual(symbols[1].address, 0x2000)
+        self.assertEqual(symbols[1].size, 0x4)
+
+        # Set image symbols again
+        client.set_image_symbols(project_name="dummy.tmp", image_name="default", symbols=[Symbol(name="symbol1", address=0x1004, size=0x1), Symbol(name="symbol2", address=0x2004, size=0x1)])
+
+        # Get image symbols again
+        symbols = client.get_image_symbols(project_name="dummy.tmp", image_name="default")
+        self.assertEqual(len(symbols), 2)
+        self.assertEqual(symbols[0].name, "symbol1")
+        self.assertEqual(symbols[0].address, 0x1004)
+        self.assertEqual(symbols[0].size, 0x1)
+        self.assertEqual(symbols[1].name, "symbol2")
+        self.assertEqual(symbols[1].address, 0x2004)
+        self.assertEqual(symbols[1].size, 0x1)
+    
+    def test_get_image_symbols_new_image(self):
+        client = HavocClient("http://localhost:8080")
+
+        # Create project
+        client.create_project("dummy.tmp", ProjectConfig(MemoryConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)], entry_address=0x400000)), overwrite=True)
+
+        # Upload elf
+        file_metadata = client.upload_file("test_binaries/alias-test.elf")
+
+        # Create image
+        try: client.delete_image(project_name="dummy.tmp", image_name="default")
+        except Exception as e: pass
+
+        client.create_image(project_name="dummy.tmp", image_name="default", image_config=ImageConfig(image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash)))
+
+        # Get image symbols
+        symbols = client.get_image_symbols(project_name="dummy.tmp", image_name="default")
+        self.assertEqual(len(symbols), 0)
+        
     # TODO: test portenta, dryer, mcf pulse, adi ble, fellow, p2im.console, arducopter, alias
     # TODO: test image config update
-    # TODO: test set image symbols
-    # TODO: test get image symbols
+    # TODO: test get project images
 
 if __name__ == "__main__":
     main()

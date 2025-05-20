@@ -888,3 +888,28 @@ def havoc_common_schema_from_dict(s: Any) -> HavocCommonSchema:
 
 def havoc_common_schema_to_dict(x: HavocCommonSchema) -> Any:
     return to_class(HavocCommonSchema, x)
+
+class Symbol:
+    address: int
+    name: str
+    size: int
+
+    def __init__(self, address: int, name: str, size: int) -> None:
+        self.address = address
+        self.name = name
+        self.size = size
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'Symbol':
+        assert isinstance(obj, dict)
+        address = from_int(obj.get("address"))
+        name = from_str(obj.get("name"))
+        size = from_int(obj.get("size"))
+        return Symbol(address, name, size)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        result["address"] = from_int(self.address)
+        result["name"] = from_str(self.name)
+        result["size"] = from_int(self.size)
+        return result

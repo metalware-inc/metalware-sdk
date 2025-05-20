@@ -72,6 +72,16 @@ class HavocClient:
       raise RuntimeError(f"Image creation failed: {result['Err']}")
     else: return result['Ok']
 
+  def delete_image(self, project_name: str, image_name: str) -> None:
+    resp = self._make_request(
+      'POST',
+      f'/project/{project_name}/image/{image_name}/delete'
+    )
+    
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Image deletion failed: {result['Err']}")
+
   def create_project(self, project_name: str, config: ProjectConfig, overwrite: bool = False) -> None:
     resp = self._make_request(
       'POST',
@@ -165,3 +175,25 @@ class HavocClient:
       f'/project/{project_name}/run/{run_id}/stats'
     )
     return RunStats.from_dict(resp.json())
+
+  def set_image_symbols(self, project_name: str, image_name: str, symbols: List[Symbol]) -> None:
+    resp = self._make_request(
+      'POST',
+      f'/project/{project_name}/image/{image_name}/symbols',
+      json=[symbol.to_dict() for symbol in symbols]
+    )
+
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Symbol setting failed: {result['Err']}")
+
+  def get_image_symbols(self, project_name: str, image_name: str) -> List[Symbol]:
+    resp = self._make_request(
+      'GET',
+      f'/project/{project_name}/image/{image_name}/symbols'
+    )
+    result = resp.json()
+    print(result)
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Symbol retrieval failed: {result['Err']}")
+    else: return [Symbol.from_dict(symbol) for symbol in result['Ok']]
