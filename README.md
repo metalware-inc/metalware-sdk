@@ -27,7 +27,7 @@ python main.py
 
 There are two types of images: ELF and RAW. A RAW image can be made up of one or more files.
 
-### RAW image Example
+### RAW Image Example
 
 ```python
 from metalware_sdk import HavocClient
@@ -88,6 +88,6 @@ print("Dry run completed successfully.")
 # Start fuzzing!
 # client.start_run(
 #   project_name=PROJECT_NAME,
-#   config=RunConfig(image_name=IMAGE_NAME, dry_run=True)
+#   config=RunConfig(image_name=IMAGE_NAME, dry_run=False)
 # )
 ```
