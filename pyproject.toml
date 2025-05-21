@@ -3,7 +3,7 @@ name = "metalware-sdk"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "Andrew Nedea",email = "andrew@metalware.com"}
+    {name = "Metalware Team",email = "support@metalware.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,7 +13,6 @@ dependencies = [
 
 [tool.poetry]
 packages = [{include = "metalware_sdk", from = "src"}]
-
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

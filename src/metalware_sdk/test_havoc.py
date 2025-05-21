@@ -368,11 +368,11 @@ class TestHavoc(TestCase):
     def test_portenta_elf_infer(self):
         self.infer_and_dry_run("test_binaries/portenta_STM32H747AII6_CM7.elf")
     
-    def test_dryer_elf_infer(self):
-        self.infer_and_dry_run("test_binaries/DMC_DryerController_application.elf")
+    def test_knickerbocker_elf_infer(self):
+        self.infer_and_dry_run("test_binaries/knickerbocker.elf")
 
-    def test_mcf_pulse_elf_infer(self):
-        self.infer_and_dry_run("test_binaries/MCFPulseOxiTemp.X.debug.elf")
+    def test_floormat_infer(self):
+        self.infer_and_dry_run("test_binaries/floormat.elf")
 
     def test_adi_ble_elf_infer(self):
         self.infer_and_dry_run("test_binaries/ADI_periph_max32655.elf")
