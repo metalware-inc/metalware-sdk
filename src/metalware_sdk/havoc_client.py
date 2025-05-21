@@ -57,16 +57,6 @@ class HavocClient:
     else:
       raise RuntimeError(f"Memory config inference failed: {result.get('Err', 'Unknown error')}")
 
-  def delete_project_image(self, project_name: str, image_name: str) -> None:
-    resp = self._make_request(
-      'POST',
-      f'/project/{project_name}/image/{image_name}/delete'
-    )
-    
-    result = resp.json()
-    if isinstance(result, dict) and 'Err' in result:
-      raise RuntimeError(f"Image deletion failed: {result['Err']}")
-
   def create_project_image(self, project_name: str, image_name: str, image_config: ImageConfig) -> str:
     resp = self._make_request(
       'POST',

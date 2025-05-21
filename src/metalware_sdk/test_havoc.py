@@ -184,23 +184,31 @@ class TestHavoc(TestCase):
         try: client.delete_project("dummy-2")
         except Exception as e: pass
 
-        client.create_project("dummy-2", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x500000, size=0x100000, memory_type=MemoryType.ROM)])))
+        memory_layout = [
+          Memory(base_addr=0x500000, size=0x100000, memory_type=MemoryType.ROM),
+          Memory(base_addr=0x20000000, size=0x100000, memory_type=MemoryType.RAM),
+          Memory(base_addr=0x40000000, size=0x100000, memory_type=MemoryType.MMIO),
+        ]
+
+        client.create_project("dummy-2", ProjectConfig(DeviceConfig(memory_layout=memory_layout)))
 
         # Check that project config was set
         project_config = client.get_project_config("dummy-2")
-        self.assertEqual(len(project_config.device_config.memory_layout), 1)
+        self.assertEqual(len(project_config.device_config.memory_layout), 3)
         self.assertEqual(project_config.device_config.memory_layout[0].base_addr, 0x500000)
         self.assertEqual(project_config.device_config.memory_layout[0].size, 0x100000)
         self.assertEqual(project_config.device_config.memory_layout[0].memory_type, MemoryType.ROM)
 
         # Set project config
-        client.set_project_config("dummy-2", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])))
+        memory_layout[0].base_addr = 0x400000
+        memory_layout[0].size = 0x100002
+        client.set_project_config("dummy-2", ProjectConfig(DeviceConfig(memory_layout=memory_layout)))
 
         # Check that project config was set
         project_config = client.get_project_config("dummy-2")
-        self.assertEqual(len(project_config.device_config.memory_layout), 1)
+        self.assertEqual(len(project_config.device_config.memory_layout), 3)
         self.assertEqual(project_config.device_config.memory_layout[0].base_addr, 0x400000)
-        self.assertEqual(project_config.device_config.memory_layout[0].size, 0x100000)
+        self.assertEqual(project_config.device_config.memory_layout[0].size, 0x100002)
         self.assertEqual(project_config.device_config.memory_layout[0].memory_type, MemoryType.ROM)
 
         # Delete project
