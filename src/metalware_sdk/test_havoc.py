@@ -161,6 +161,7 @@ class TestHavoc(TestCase):
         # Create project
         client.create_project("dummy.tmp", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=True)
 
+        if client.project_exists("dummy"): client.delete_project("dummy")
         # Rename project
         client.rename_project(project_name="dummy.tmp", new_name="dummy")
 
@@ -306,23 +307,42 @@ class TestHavoc(TestCase):
         symbols = client.get_image_symbols(project_name="dummy.tmp", image_name="default")
         self.assertEqual(len(symbols), 5)
 
-    def test_get_project_images(self):
+    def test_create_project_overwrite_fail(self):
+        client = HavocClient("http://localhost:8080")
+        with self.assertRaises(Exception) as context:
+            client.create_project("dummy", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=True)
+        self.assertTrue("when overwriting" in str(context.exception))
+
+    def test_create_project_same_name_fail(self):
+        client = HavocClient("http://localhost:8080")
+        with self.assertRaises(Exception) as context:
+            client.create_project("dummyxxl", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=False)
+            client.create_project("dummyxxl", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=False)
+        self.assertTrue("already taken" in str(context.exception))
+
+    def test_create_get_project_image(self):
         client = HavocClient("http://localhost:8080")
 
         # Create project
         client.create_project("dummy.tmp", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=True)
         
+        # Get project images again
+        images = client.get_project_images(project_name="dummy.tmp")
+        self.assertEqual(len(images), 0)
+
+        # Create image
+        file_metadata = client.upload_file("test_binaries/alias-test.elf")
+        client.create_project_image(project_name="dummy.tmp", image_name="default", image_config=ImageConfig(entry_address=0x400000, image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash)))
+
         # Get project images
         images = client.get_project_images(project_name="dummy.tmp")
         self.assertEqual(len(images), 1)
         self.assertEqual(images[0], "default")
-        
-        # Delete image
-        client.delete_image(project_name="dummy.tmp", image_name="default")
 
-        # Get project images again
-        images = client.get_project_images(project_name="dummy.tmp")
-        self.assertEqual(len(images), 0)
+        # Get image config
+        image = client.get_project_image(project_name="dummy.tmp", image_name=images[0])
+        self.assertEqual(image.image_arch, ImageArch.CORTEX_M)
+        self.assertEqual(image.image_format.elf, file_metadata.hash)
 
     def test_update_project_image(self):
         client = HavocClient("http://localhost:8080")
