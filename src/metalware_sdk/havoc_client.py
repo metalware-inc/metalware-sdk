@@ -135,6 +135,20 @@ class HavocClient:
     if isinstance(result, dict) and 'Err' in result:
       raise RuntimeError(f"Project creation failed: {result['Err']}")
 
+  def project_exists(self, project_name: str) -> bool:
+    resp = self._make_request(
+      'GET',
+      f'/project/{project_name}/exists'
+    )
+    return resp.status_code == 200 and 'Ok' in resp.text and resp.json()['Ok']
+
+  def image_exists(self, project_name: str, image_name: str) -> bool:
+    resp = self._make_request(
+      'GET',
+      f'/project/{project_name}/image/{image_name}/exists'
+    )
+    return resp.status_code == 200 and 'Ok' in resp.text and resp.json()['Ok']
+
   def rename_project(self, project_name: str, new_name: str) -> None:
     resp = self._make_request(
       'POST',
