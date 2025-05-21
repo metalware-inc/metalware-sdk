@@ -1,35 +1,3 @@
-# Metalware SDK
-
-Python client SDK for interacting with Metalware [Havoc](https://www.metalware.com/product), a firmware fuzzing platform.
-
-## Installation
-
-### Using pip
-
-```bash
-git clone https://github.com/metalware-inc/metalware-sdk.git
-cd metalware-sdk
-python3 -m venv venv
-. venv/bin/activate
-pip install -e .
-```
-
-## Example
-
-Make sure to edit `HAVOC_ENDPOINT` to point to the endpoint of the Docker container.
-
-```bash
-cd examples/raw_image_multi_rom
-python main.py
-```
-
-## Usage
-
-There are two types of images: ELF and RAW. A RAW image can be made up of one or more files.
-
-### RAW image Example
-
-```python
 from metalware_sdk import HavocClient
 from metalware_sdk.havoc_common_schema import *
 
@@ -90,4 +58,3 @@ print("Dry run completed successfully.")
 #   project_name=PROJECT_NAME,
 #   config=RunConfig(image_name=IMAGE_NAME, dry_run=True)
 # )
-```

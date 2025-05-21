@@ -44,20 +44,30 @@ class HavocClient:
     else:
       raise RuntimeError(f"Upload failed: {result.get('Err', 'Unknown error')}")
 
-  def infer_memory_config(self, file_hash: str) -> MemoryConfig:
+  def infer_config(self, file_hash: str) -> InferredConfig:
     resp = self._make_request(
       'POST',
-      f'/infer-memory-config',
+      f'/infer-memory-layout-and-entry',
       json=file_hash
     )
     
     result = resp.json()
     if isinstance(result, dict) and 'Ok' in result:
-      return MemoryConfig.from_dict(result['Ok'])
+      return InferredConfig.from_dict(result['Ok'])
     else:
       raise RuntimeError(f"Memory config inference failed: {result.get('Err', 'Unknown error')}")
 
-  def create_image(self, project_name: str, image_name: str, image_config: ImageConfig) -> str:
+  def delete_project_image(self, project_name: str, image_name: str) -> None:
+    resp = self._make_request(
+      'POST',
+      f'/project/{project_name}/image/{image_name}/delete'
+    )
+    
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Image deletion failed: {result['Err']}")
+
+  def create_project_image(self, project_name: str, image_name: str, image_config: ImageConfig) -> str:
     resp = self._make_request(
       'POST',
       f'/project/{project_name}/create-image',
@@ -80,6 +90,13 @@ class HavocClient:
     result = resp.json()
     if isinstance(result, dict) and 'Err' in result:
       raise RuntimeError(f"Image update failed: {result['Err']}")
+
+  def project_image_exists(self, project_name: str, image_name: str) -> bool:
+    resp = self._make_request(
+      'GET',
+      f'/project/{project_name}/image/{image_name}'
+    )
+    return resp.status_code == 200 and 'Ok' in resp.text
 
   def get_project_image(self, project_name: str, image_name: str) -> ImageConfig:
     resp = self._make_request(
