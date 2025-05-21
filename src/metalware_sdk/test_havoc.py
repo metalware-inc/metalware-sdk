@@ -30,7 +30,7 @@ class TestHavoc(TestCase):
         project_config = ProjectConfig(device_config)
         client.create_project("alias-test.tmp", project_config, overwrite=True)
 
-        image_config = ImageConfig(entry_address=inferred_config.entry_address, image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash))
+        image_config = inferred_config.image_config
         client.create_project_image(project_name="alias-test.tmp", image_name="default", image_config=image_config)
 
         client.start_run(project_name="alias-test.tmp", config=RunConfig(image_name="default", dry_run=True))
@@ -41,13 +41,11 @@ class TestHavoc(TestCase):
 
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
         device_config = inferred_config.device_config
-        rom_addr = get_rom_addr(device_config)
 
         project_config = ProjectConfig(device_config)
         client.create_project("zephyr-10064.tmp", project_config, overwrite=True)
 
-        raw_image = RawImage(segments=[RawImageSegment(address=rom_addr, hash=file_metadata.hash)])
-        image_config = ImageConfig(entry_address=inferred_config.entry_address, image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(raw=raw_image))
+        image_config = inferred_config.image_config
         client.create_project_image(project_name="zephyr-10064.tmp", image_name="default", image_config=image_config)
 
         client.start_run(project_name="zephyr-10064.tmp", config=RunConfig(image_name="default", dry_run=True))
@@ -298,7 +296,7 @@ class TestHavoc(TestCase):
 
         # Get image symbols
         symbols = client.get_image_symbols(project_name="dummy.tmp", image_name="default")
-        self.assertEqual(len(symbols), 0)
+        self.assertEqual(len(symbols), 5)
 
     def test_get_project_images(self):
         client = HavocClient("http://localhost:8080")
@@ -356,12 +354,12 @@ class TestHavoc(TestCase):
         client = HavocClient("http://localhost:8080")
         file_metadata = client.upload_file(file_path)
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
-        if manual_entry_address is not None: inferred_config.entry_address = manual_entry_address
         for memory in manual_memories: inferred_config.device_config.memory_layout.append(memory)
         project_config = ProjectConfig(inferred_config.device_config)
         project_name = file_path.split("/")[-1].split(".")[0] + ".tmp"
         client.create_project(project_name, project_config, overwrite=True)
-        image_config = ImageConfig(entry_address=inferred_config.entry_address, image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash))
+        image_config = inferred_config.image_config
+        if manual_entry_address is not None: image_config.entry_address = manual_entry_address
         client.create_project_image(project_name=project_name, image_name="default", image_config=image_config)
         client.start_run(project_name=project_name, config=RunConfig(image_name="default", dry_run=True))
 

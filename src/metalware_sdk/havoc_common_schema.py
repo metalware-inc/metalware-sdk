@@ -446,18 +446,44 @@ class Patch:
         result["patch_type"] = to_enum(PatchType, self.patch_type)
         return result
 
+class Symbol:
+    address: int
+    name: str
+    size: int
+
+    def __init__(self, address: int, name: str, size: int) -> None:
+        self.address = address
+        self.name = name
+        self.size = size
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'Symbol':
+        assert isinstance(obj, dict)
+        address = from_int(obj.get("address"))
+        name = from_str(obj.get("name"))
+        size = from_int(obj.get("size"))
+        return Symbol(address, name, size)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        result["address"] = from_int(self.address)
+        result["name"] = from_str(self.name)
+        result["size"] = from_int(self.size)
+        return result
 
 class ImageConfig:
     entry_address: int
     image_arch: ImageArch
     image_format: ImageFormat
     patches: List[Patch]
+    symbols: List[Symbol]
 
-    def __init__(self, entry_address: int, image_arch: ImageArch, image_format: ImageFormat, patches: List[Patch] = []) -> None:
+    def __init__(self, entry_address: int, image_arch: ImageArch, image_format: ImageFormat, patches: List[Patch] = [], symbols: List[Symbol] = []) -> None:
         self.entry_address = entry_address
         self.image_arch = image_arch
         self.image_format = image_format
         self.patches = patches
+        self.symbols = symbols
 
     @staticmethod
     def from_dict(obj: Any) -> 'ImageConfig':
@@ -466,7 +492,8 @@ class ImageConfig:
         image_arch = ImageArch(obj.get("image_arch"))
         image_format = ImageFormat.from_dict(obj.get("image_format"))
         patches = from_list(Patch.from_dict, obj.get("patches"))
-        return ImageConfig(entry_address, image_arch, image_format, patches)
+        symbols = from_list(Symbol.from_dict, obj.get("symbols"))
+        return ImageConfig(entry_address, image_arch, image_format, patches, symbols)
 
     def to_dict(self) -> dict:
         result: dict = {}
@@ -474,29 +501,29 @@ class ImageConfig:
         result["image_arch"] = to_enum(ImageArch, self.image_arch)
         result["image_format"] = to_class(ImageFormat, self.image_format)
         result["patches"] = from_list(lambda x: to_class(Patch, x), self.patches)
+        result["symbols"] = from_list(lambda x: to_class(Symbol, x), self.symbols)
         return result
 
 
 class InferredConfig:
     device_config: DeviceConfig
-    entry_address: Optional[int]
+    image_config: ImageConfig
 
-    def __init__(self, device_config: DeviceConfig, entry_address: Optional[int]) -> None:
+    def __init__(self, device_config: DeviceConfig, image_config: ImageConfig) -> None:
         self.device_config = device_config
-        self.entry_address = entry_address
+        self.image_config = image_config
 
     @staticmethod
     def from_dict(obj: Any) -> 'InferredConfig':
         assert isinstance(obj, dict)
         device_config = DeviceConfig.from_dict(obj.get("device_config"))
-        entry_address = from_union([from_none, from_int], obj.get("entry_address"))
-        return InferredConfig(device_config, entry_address)
+        image_config = ImageConfig.from_dict(obj.get("image_config"))
+        return InferredConfig(device_config, image_config)
 
     def to_dict(self) -> dict:
         result: dict = {}
         result["device_config"] = to_class(DeviceConfig, self.device_config)
-        if self.entry_address is not None:
-            result["entry_address"] = from_union([from_none, from_int], self.entry_address)
+        result["image_config"] = to_class(ImageConfig, self.image_config)
         return result
 
 
