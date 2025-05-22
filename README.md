@@ -2,6 +2,8 @@
 
 Python client SDK for interacting with Metalware [Havoc](https://www.metalware.com/product), a firmware fuzzing platform.
 
+![Architecture Diagram](images/project_diagram.2.0.9.svg)
+
 ## Installation
 
 ### Using pip
@@ -32,8 +34,6 @@ There are two types of images: ELF and RAW. A RAW image can be made up of one or
 ```python
 from metalware_sdk import HavocClient
 from metalware_sdk.havoc_common_schema import *
-
-import time
 
 PROJECT_NAME="multi-rom-project"
 IMAGE_NAME="default"
@@ -83,31 +83,15 @@ if not client.image_exists(PROJECT_NAME, IMAGE_NAME):
   )
 
 # Start a dry run to verify configuration.
-run_id = client.start_run(
+client.start_run(
   project_name=PROJECT_NAME,
   config=RunConfig(image_name=IMAGE_NAME, dry_run=True)
 )
 
-while client.get_run_status(PROJECT_NAME, run_id) != RunStatus.FINISHED:
-  print(f"Run {run_id} status: {client.get_run_status(PROJECT_NAME, run_id)}")
-  time.sleep(1)
-
 print("Dry run completed successfully.")
 
-# Start a fuzzing run.
-run_id = client.start_run(
-  project_name=PROJECT_NAME,
-  config=RunConfig(image_name=IMAGE_NAME, dry_run=False)
-)
-
-print(f"Run {run_id} started.")
-
-while client.get_run_status(PROJECT_NAME, run_id) != RunStatus.RUNNING:
-  print(f"Run {run_id} status: {client.get_run_status(PROJECT_NAME, run_id)}")
-  time.sleep(1)
-
-# Stop the fuzzing run.
-client.stop_run(PROJECT_NAME, run_id)
-
-print("Fuzzing stopped.")
+#client.start_run(
+#  project_name=PROJECT_NAME,
+#  config=RunConfig(image_name=IMAGE_NAME, dry_run=False)
+#)
 ```
