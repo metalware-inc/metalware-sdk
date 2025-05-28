@@ -166,9 +166,6 @@ class TestInference(unittest.TestCase):
 
         self.assertEqual(len(device_config.memory_layout[0].file.segments), 5)
 
-        for segment in device_config.memory_layout:
-            print(hex(segment.base_addr), hex(segment.size), segment.memory_type)
-
         self.assertEqual(device_config.memory_layout[0].file.segments[0].file_offset, 0x10000)
         self.assertEqual(device_config.memory_layout[0].file.segments[0].memory_offset, 0x0)
         self.assertEqual(device_config.memory_layout[0].file.segments[0].size, 0x298)
@@ -210,15 +207,180 @@ class TestInference(unittest.TestCase):
         self.assertEqual(device_config.memory_layout[3].file.segments[1].memory_offset, 0x800)
         self.assertEqual(device_config.memory_layout[3].file.segments[1].size, 0x1900)
 
+        self.assertEqual(device_config.memory_layout[4].base_addr, 0x38000000)
         self.assertEqual(device_config.memory_layout[4].size, 0x100000)
         self.assertEqual(device_config.memory_layout[4].memory_type, MemoryType.RAM)
-        self.assertEqual(device_config.memory_layout[4].base_addr, 0x38000000)
         self.assertEqual(len(device_config.memory_layout[4].file.segments), 0)
 
         self.assertEqual(device_config.memory_layout[5].base_addr, 0x40000000)
         self.assertEqual(device_config.memory_layout[5].file, None)
 
+    def test_p2im_console_elf(self):
+        client = HavocClient("http://localhost:8080")
+        file_metadata = client.upload_file("test_binaries/p2im.console.elf")
+        inferred_config = client.infer_config(file_hash=file_metadata.hash)
+        device_config = inferred_config.device_config
+        
+        self.assertEqual(len(device_config.memory_layout), 3)
+        self.assertEqual(device_config.memory_layout[0].base_addr, 0x0)
+        self.assertEqual(device_config.memory_layout[0].memory_type, MemoryType.ROM)
+        self.assertEqual(device_config.memory_layout[0].size, 0x77fc)
 
+        self.assertEqual(len(device_config.memory_layout[0].file.segments), 4)
+
+        self.assertEqual(device_config.memory_layout[0].file.segments[0].file_offset, 0x10000)
+        self.assertEqual(device_config.memory_layout[0].file.segments[0].memory_offset, 0x0)
+        self.assertEqual(device_config.memory_layout[0].file.segments[0].size, 0x400)
+
+        self.assertEqual(device_config.memory_layout[0].file.segments[1].file_offset, 0x10400)
+        self.assertEqual(device_config.memory_layout[0].file.segments[1].memory_offset, 0x400)
+        self.assertEqual(device_config.memory_layout[0].file.segments[1].size, 0x10)
+
+        self.assertEqual(device_config.memory_layout[0].file.segments[2].file_offset, 0x10410)
+        self.assertEqual(device_config.memory_layout[0].file.segments[2].memory_offset, 0x410)
+        self.assertEqual(device_config.memory_layout[0].file.segments[2].size, 0x714c)
+
+        self.assertEqual(device_config.memory_layout[0].file.segments[3].file_offset, 0x20200)
+        self.assertEqual(device_config.memory_layout[0].file.segments[3].memory_offset, 0x755c)
+        self.assertEqual(device_config.memory_layout[0].file.segments[3].size, 0x2a0)
+
+        self.assertEqual(device_config.memory_layout[1].base_addr, 0x1fff0000)
+        self.assertEqual(device_config.memory_layout[1].memory_type, MemoryType.RAM)
+        self.assertEqual(device_config.memory_layout[1].size, 0x100000)
+        self.assertEqual(len(device_config.memory_layout[1].file.segments), 1)
+        self.assertEqual(device_config.memory_layout[1].file.segments[0].file_offset, 0x20200)
+        self.assertEqual(device_config.memory_layout[1].file.segments[0].memory_offset, 0x200)
+        self.assertEqual(device_config.memory_layout[1].file.segments[0].size, 0x2a0)
+
+        self.assertEqual(device_config.memory_layout[2].base_addr, 0x40000000)
+        self.assertEqual(device_config.memory_layout[2].memory_type, MemoryType.MMIO)
+        self.assertEqual(device_config.memory_layout[2].file, None)
+
+    def test_knickerbocker_elf(self):
+        client = HavocClient("http://localhost:8080")
+        file_metadata = client.upload_file("test_binaries/knickerbocker.elf")
+        inferred_config = client.infer_config(file_hash=file_metadata.hash)
+        device_config = inferred_config.device_config
+
+        self.assertEqual(len(device_config.memory_layout), 4)
+        
+        self.assertEqual(device_config.memory_layout[0].base_addr, 0x800000)
+        self.assertEqual(device_config.memory_layout[0].memory_type, MemoryType.ROM)
+        self.assertEqual(device_config.memory_layout[0].size, 0x5fc0)
+
+        self.assertEqual(len(device_config.memory_layout[0].file.segments), 1)
+
+        self.assertEqual(device_config.memory_layout[0].file.segments[0].file_offset, 0x0)
+        self.assertEqual(device_config.memory_layout[0].file.segments[0].memory_offset, 0x0)
+        self.assertEqual(device_config.memory_layout[0].file.segments[0].size, 0x5fc0)
+
+        self.assertEqual(device_config.memory_layout[1].base_addr, 0x01000200)
+        self.assertEqual(device_config.memory_layout[1].memory_type, MemoryType.ROM)
+        self.assertEqual(device_config.memory_layout[1].size, 0x32e89)
+
+        self.assertEqual(len(device_config.memory_layout[1].file.segments), 2)
+
+        self.assertEqual(device_config.memory_layout[1].file.segments[0].file_offset, 0x10200)
+        self.assertEqual(device_config.memory_layout[1].file.segments[0].memory_offset, 0x0)
+        self.assertEqual(device_config.memory_layout[1].file.segments[0].size, 0x214)
+
+        self.assertEqual(device_config.memory_layout[1].file.segments[1].file_offset, 0x10414)
+        self.assertEqual(device_config.memory_layout[1].file.segments[1].memory_offset, 0x214)
+        self.assertEqual(device_config.memory_layout[1].file.segments[1].size, 0x32c75)
+        
+        self.assertEqual(device_config.memory_layout[2].base_addr, 0x20000000)
+        self.assertEqual(device_config.memory_layout[2].memory_type, MemoryType.RAM)
+        self.assertEqual(device_config.memory_layout[2].size, 0x100000)
+
+        self.assertEqual(len(device_config.memory_layout[2].file.segments), 1)
+
+        self.assertEqual(device_config.memory_layout[2].file.segments[0].file_offset, 0x5104c)
+        self.assertEqual(device_config.memory_layout[2].file.segments[0].memory_offset, 0x104c)
+        self.assertEqual(device_config.memory_layout[2].file.segments[0].size, 0xe659)
+
+        self.assertEqual(device_config.memory_layout[3].base_addr, 0x40000000)
+        self.assertEqual(device_config.memory_layout[3].file, None)
+
+    def test_adi_periph_max32655_elf(self):
+        client = HavocClient("http://localhost:8080")
+        file_metadata = client.upload_file("test_binaries/ADI_periph_max32655.elf")
+        inferred_config = client.infer_config(file_hash=file_metadata.hash)
+        device_config = inferred_config.device_config
+
+        self.assertEqual(len(device_config.memory_layout), 4)
+
+        self.assertEqual(device_config.memory_layout[0].base_addr, 0x10000000)
+        self.assertEqual(device_config.memory_layout[0].memory_type, MemoryType.ROM)
+        self.assertEqual(device_config.memory_layout[0].size, 0x31498)
+
+        self.assertEqual(len(device_config.memory_layout[0].file.segments), 2)
+
+        self.assertEqual(device_config.memory_layout[0].file.segments[0].file_offset, 0x10000)
+        self.assertEqual(device_config.memory_layout[0].file.segments[0].memory_offset, 0x0)
+        self.assertEqual(device_config.memory_layout[0].file.segments[0].size, 0x305e8)
+
+        self.assertEqual(device_config.memory_layout[0].file.segments[1].file_offset, 0x50000)
+        self.assertEqual(device_config.memory_layout[0].file.segments[1].memory_offset, 0x305e8)
+        self.assertEqual(device_config.memory_layout[0].file.segments[1].size, 0xeb0)
+
+        self.assertEqual(device_config.memory_layout[1].base_addr, 0x1007c000)
+        self.assertEqual(device_config.memory_layout[1].memory_type, MemoryType.RAM)
+        self.assertEqual(device_config.memory_layout[1].size, 0x100000)
+
+        self.assertEqual(len(device_config.memory_layout[1].file.segments), 0)
+
+        self.assertEqual(device_config.memory_layout[2].base_addr, 0x20000000)
+        self.assertEqual(device_config.memory_layout[2].memory_type, MemoryType.RAM)
+        self.assertEqual(device_config.memory_layout[2].size, 0x100000)
+        self.assertEqual(len(device_config.memory_layout[2].file.segments), 1)
+
+        self.assertEqual(device_config.memory_layout[2].file.segments[0].file_offset, 0x50000)
+        self.assertEqual(device_config.memory_layout[2].file.segments[0].memory_offset, 0x0)
+        self.assertEqual(device_config.memory_layout[2].file.segments[0].size, 0xeb0)
+
+        self.assertEqual(device_config.memory_layout[3].base_addr, 0x40000000)
+        self.assertEqual(device_config.memory_layout[3].file, None)
+
+    def test_arducopter_elf(self):
+        client = HavocClient("http://localhost:8080")
+        file_metadata = client.upload_file("test_binaries/arducopter.elf")
+        inferred_config = client.infer_config(file_hash=file_metadata.hash)
+        device_config = inferred_config.device_config
+
+        self.assertEqual(len(device_config.memory_layout), 5)
+
+        self.assertEqual(device_config.memory_layout[0].base_addr, 0x8000000)
+        self.assertEqual(device_config.memory_layout[0].memory_type, MemoryType.ROM)
+        self.assertEqual(device_config.memory_layout[0].size, 0x19df50)
+
+        self.assertEqual(len(device_config.memory_layout[0].file.segments), 2)
+
+        self.assertEqual(device_config.memory_layout[0].file.segments[0].file_offset, 0x0)
+        self.assertEqual(device_config.memory_layout[0].file.segments[0].memory_offset, 0x0)
+        self.assertEqual(device_config.memory_layout[0].file.segments[0].size, 0x19d0a0)
+
+        self.assertEqual(device_config.memory_layout[0].file.segments[1].file_offset, 0x1a2200)
+        self.assertEqual(device_config.memory_layout[0].file.segments[1].memory_offset, 0x19d0a0)
+        self.assertEqual(device_config.memory_layout[0].file.segments[1].size, 0xeb0)
+
+        # Skip the region for stm32 uid registers
+
+        self.assertEqual(device_config.memory_layout[2].base_addr, 0x20000000)
+        self.assertEqual(device_config.memory_layout[2].memory_type, MemoryType.RAM)
+        self.assertEqual(device_config.memory_layout[2].size, 0x100000)
+        self.assertEqual(len(device_config.memory_layout[2].file.segments), 1)
+
+        self.assertEqual(device_config.memory_layout[2].file.segments[0].file_offset, 0x1a2200)
+        self.assertEqual(device_config.memory_layout[2].file.segments[0].memory_offset, 0x2200)
+        self.assertEqual(device_config.memory_layout[2].file.segments[0].size, 0x0eb0)
+
+        self.assertEqual(device_config.memory_layout[3].base_addr, 0x20019000)
+        self.assertEqual(device_config.memory_layout[3].memory_type, MemoryType.RAM)
+        self.assertEqual(device_config.memory_layout[3].size, 0x100000)
+        self.assertEqual(len(device_config.memory_layout[3].file.segments), 0)
+
+        self.assertEqual(device_config.memory_layout[4].base_addr, 0x40000000)
+        self.assertEqual(device_config.memory_layout[4].file, None)
 
 if __name__ == "__main__":
     unittest.main()
