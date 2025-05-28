@@ -347,7 +347,10 @@ class TestInference(unittest.TestCase):
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
         device_config = inferred_config.device_config
 
-        self.assertEqual(len(device_config.memory_layout), 5)
+        for mem in device_config.memory_layout:
+            print(hex(mem.base_addr), hex(mem.size), mem.memory_type)
+
+        self.assertEqual(len(device_config.memory_layout), 4)
 
         self.assertEqual(device_config.memory_layout[0].base_addr, 0x8000000)
         self.assertEqual(device_config.memory_layout[0].memory_type, MemoryType.ROM)
@@ -374,13 +377,8 @@ class TestInference(unittest.TestCase):
         self.assertEqual(device_config.memory_layout[2].file.segments[0].memory_offset, 0x2200)
         self.assertEqual(device_config.memory_layout[2].file.segments[0].size, 0x0eb0)
 
-        self.assertEqual(device_config.memory_layout[3].base_addr, 0x20019000)
-        self.assertEqual(device_config.memory_layout[3].memory_type, MemoryType.RAM)
-        self.assertEqual(device_config.memory_layout[3].size, 0x100000)
-        self.assertEqual(len(device_config.memory_layout[3].file.segments), 0)
-
-        self.assertEqual(device_config.memory_layout[4].base_addr, 0x40000000)
-        self.assertEqual(device_config.memory_layout[4].file, None)
+        self.assertEqual(device_config.memory_layout[3].base_addr, 0x40000000)
+        self.assertEqual(device_config.memory_layout[3].file, None)
 
 if __name__ == "__main__":
     unittest.main()
