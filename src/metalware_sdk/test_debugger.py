@@ -197,11 +197,54 @@ def test_readwrite_watchpoint():
   state = debugger.state()
   assert state['pc'] == 0x2000, f"PC: {hex(state['pc'])}"
 
+def test_write_register_branch_target():
+  # Rewrites the branch target r3 in last instruction.
+  debugger = ReplayDebugger(client, "cve2020-10064-june13", 1, "0x402dbb_0x2000_jump_invalid")
+  debugger.add_breakpoint(0x40d4bc)
+  debugger.run()
 
-# TODO: write_memory, read_memory, disassemble, backtrace, write_register.
+  assert debugger.read_register("pc") == 0x40d4bc, f"PC: {hex(debugger.read_register('pc'))}"
+
+  debugger.write_register("r3", 0xdeadbeee)
+  exit_reason = debugger.run()
+
+  assert exit_reason == "invalid_jump", f"Exit reason: {exit_reason}"
+  assert debugger.read_register("pc") == 0xdeadbeee, f"PC: {hex(debugger.read_register('pc'))}"
+
+def test_write_register_comparison():
+  debugger = ReplayDebugger(client, "cve2020-10064-june13", 1, "0x402dbb_0x2000_jump_invalid")
+  debugger.add_breakpoint(0x40dae2)
+  debugger.run()
+
+  assert debugger.read_register("pc") == 0x40dae2, f"PC: {hex(debugger.read_register('pc'))}"
+  # 0x40dae2  cmp r2,r1     ; r1 = 0x2000a1e7, r2 = 0x2000a1e5
+  # 0x40dae4  bne 0x40dada  ; in original trace, this branch is taken.
+  assert debugger.read_register("r1") == 0x2000a1e7, f"R1: {hex(debugger.read_register('r1'))}"
+  assert debugger.read_register("r2") == 0x2000a1e5, f"R2: {hex(debugger.read_register('r2'))}"
+
+  # Make r2 equal to r1 so that branch is not taken.
+  debugger.write_register("r2", 0x2000a1e7)
+
+  debugger.step()
+  debugger.step()
+
+  assert debugger.read_register("pc") == 0x40dae6, f"PC: {hex(debugger.read_register('pc'))}"
+
+def test_write_register_invalid():
+  debugger = ReplayDebugger(client, "cve2020-10064-june13", 1, "0x402dbb_0x2000_jump_invalid")
+  try:
+    debugger.write_register("r19x", 0xdeadbeee)
+  except RuntimeError as e:
+    assert "Unknown register" in str(e)
+  else: assert False, "Expected RuntimeError"
+
+# TODO: write_memory, read_memory, disassemble, backtrace.
 
 test_step()
 test_breakpoint()
 test_write_watchpoint()
 test_read_watchpoint()
 test_readwrite_watchpoint()
+test_write_register_branch_target()
+test_write_register_comparison()
+test_write_register_invalid()
