@@ -1,5 +1,6 @@
 from metalware_sdk.havoc_client import HavocClient
 from metalware_sdk.replay_debugger import ReplayDebugger, WatchType
+import time
 
 client = HavocClient(base_url="http://localhost:8080")
 
@@ -238,7 +239,31 @@ def test_write_register_invalid():
     assert "Unknown register" in str(e)
   else: assert False, "Expected RuntimeError"
 
-# TODO: write_memory, read_memory, disassemble, backtrace.
+def test_decompile_range():
+  debugger = ReplayDebugger(client, "cve2020-10064-june13", 1, "0x402dbb_0x2000_jump_invalid")
+  debugger.add_breakpoint(0x00402990)
+  debugger.run()
+
+  debugger.step()
+  debugger.step()
+  print(hex(debugger.read_register("pc")))
+
+  current_pc = debugger.read_register("pc")
+
+  for _ in range(14):
+    start_time = time.monotonic()
+    debugger.step()
+    debugger.print_asm()
+    print(hex(debugger.read_register("pc")))
+
+  for _ in range(4):
+    debugger.step_back()
+    print(hex(debugger.read_register("pc")))
+    debugger.print_asm()
+
+  print("time to disassemble: ", time.monotonic() - start_time)
+
+# TODO: write_memory, read_memory, backtrace.
 
 test_step()
 test_breakpoint()
@@ -248,3 +273,4 @@ test_readwrite_watchpoint()
 test_write_register_branch_target()
 test_write_register_comparison()
 test_write_register_invalid()
+test_decompile_range()

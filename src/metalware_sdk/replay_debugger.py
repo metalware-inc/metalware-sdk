@@ -78,10 +78,19 @@ class ReplayDebugger:
   def write_memory(self, address: int, data: bytes) -> None:
     self._send_command({"c": "write_mem", "address": address, "data": data})
 
-  def disassemble(self, count: int) -> list[str]:
-    result = self._send_command({"c": "disassemble", "count": count})
+  def disassemble(self) -> list[str]:
+    result = self._send_command({"c": "disassemble"})
     if 'data' in result and 'disassembly' in result['data']: return result['data']['disassembly']
     else: raise RuntimeError(result['message'])
+
+  def print_asm(self):
+    asm = self.disassemble()
+    current_pc = self.read_register("pc")
+    print("asm: ", asm)
+    for pc, disasm in asm:
+      if pc == current_pc: print(f"> {hex(pc)}: {disasm}")
+      else: print(f"{hex(pc)}: {disasm}")
+    print("done")
 
   def list_registers(self) -> dict:
     result = self._send_command({"c": "list_regs"})
@@ -107,4 +116,9 @@ class ReplayDebugger:
   def rewind(self) -> None:
     result = self._send_command({"c": "rewind"})
     if 'success' in result and result['success']: return
+    else: raise RuntimeError(result['message'])
+
+  def disassemble_range(self, start_addr: int, count: int) -> list[str]:
+    result = self._send_command({"c": "disassemble_range", "start_addr": start_addr, "count": count})
+    if 'data' in result and 'disassembly' in result['data']: return result['data']['disassembly']
     else: raise RuntimeError(result['message'])
