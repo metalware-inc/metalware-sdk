@@ -1,6 +1,11 @@
 import json
+from enum import Enum
 
 from metalware_sdk.havoc_client import HavocClient
+
+class WatchType(Enum):
+  READ = "read"
+  WRITE = "write"
 
 
 class ReplayDebugger:
@@ -29,11 +34,13 @@ class ReplayDebugger:
   def remove_breakpoint(self, address: int):
     self._send_command({"c": "remove_breakpoint", "address": address})
 
-  def add_watchpoint(self, address: int, watch_type: str):
-    self._send_command({"c": "add_watchpoint", "address": address, "watch_type": watch_type})
+  def add_watchpoint(self, address: int, watch_type: WatchType) -> None:
+    result = self._send_command({"c": "add_watchpoint", "address": address, "watch_type": watch_type.value})
+    if 'success' in result and result['success']: return
+    else: raise RuntimeError(f"Failed to add watchpoint: {result}")
 
-  def remove_watchpoint(self, address: int, watch_type: str):
-    self._send_command({"c": "remove_watchpoint", "address": address, "watch_type": watch_type})
+  def remove_watchpoint(self, address: int, watch_type: WatchType):
+    self._send_command({"c": "remove_watchpoint", "address": address, "watch_type": watch_type.value})
 
   def step(self) -> str:
     res = self._send_command({"c": "step"})
@@ -94,10 +101,10 @@ class ReplayDebugger:
     else:
       raise RuntimeError(f"Failed to get registers: {result}")
 
-  def list_watchpoints(self) -> list[int]:
+  def list_watchpoints(self) -> list[tuple[int, WatchType]]:
     result = self._send_command({"c": "list_watchpoints"})
     if 'data' in result and 'watchpoints' in result['data']:
-      return result['data']['watchpoints']
+      return [(int(wp[0]), WatchType(wp[1])) for wp in result['data']['watchpoints']]
     else:
       raise RuntimeError(f"Failed to get watchpoints: {result}")
 
@@ -114,3 +121,8 @@ class ReplayDebugger:
       return result['data']['backtrace']
     else:
       raise RuntimeError(f"Failed to get backtrace: {result}")
+
+  def rewind(self) -> None:
+    result = self._send_command({"c": "rewind"})
+    if 'success' in result and result['success']: return
+    else: raise RuntimeError(f"Failed to rewind: {result}")

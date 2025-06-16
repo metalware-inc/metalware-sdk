@@ -1,5 +1,5 @@
 from metalware_sdk.havoc_client import HavocClient
-from metalware_sdk.replay_debugger import ReplayDebugger
+from metalware_sdk.replay_debugger import ReplayDebugger, WatchType
 
 client = HavocClient(base_url="http://localhost:8080")
 
@@ -9,58 +9,199 @@ client = HavocClient(base_url="http://localhost:8080")
 
 # assert "0x402dbb_0x3e8_jump_invalid" in testcases, f"Testcase not found: {testcases}"
 
-debugger = ReplayDebugger(client, "cve2020-10064-june13", 1, "0x402dbb_0x2000_jump_invalid")
+def test_step():
+  debugger = ReplayDebugger(client, "cve2020-10064-june13", 1, "0x402dbb_0x2000_jump_invalid")
 
-# Test step.
-state = debugger.state()
-assert state['pc'] == 0x402dcc, f"PC: {hex(state['pc'])}" # Reset_Handler
-assert state['icount'] == 0, f"ICount: {state['icount']}"
+  # Test step.
+  state = debugger.state()
+  assert state['pc'] == 0x402dcc, f"PC: {hex(state['pc'])}" # Reset_Handler
+  assert state['icount'] == 0, f"ICount: {state['icount']}"
 
-debugger.step()
+  debugger.step()
 
-state = debugger.state()
-assert state['pc'] == 0x402dce, f"PC: {hex(state['pc'])}" # Reset_Handler
-assert state['icount'] == 1, f"ICount: {state['icount']}"
+  state = debugger.state()
+  assert state['pc'] == 0x402dce, f"PC: {hex(state['pc'])}" # Reset_Handler
+  assert state['icount'] == 1, f"ICount: {state['icount']}"
 
-# Test step_back.
-for _ in range(100): debugger.step()
-for _ in range(100): debugger.step_back()
+  # Test step_back.
+  for _ in range(100): debugger.step()
+  for _ in range(100): debugger.step_back()
 
-state = debugger.state()
-assert state['pc'] == 0x402dce, f"PC: {hex(state['pc'])}" # Reset_Handler
-assert state['icount'] == 1, f"ICount: {state['icount']}"
+  state = debugger.state()
+  assert state['pc'] == 0x402dce, f"PC: {hex(state['pc'])}" # Reset_Handler
+  assert state['icount'] == 1, f"ICount: {state['icount']}"
 
-# Test add_breakpoint, list_breakpoints.
-debugger.add_breakpoint(0x402988)
-assert debugger.list_breakpoints() == [0x402988], f"Breakpoints: {debugger.list_breakpoints()}"
+def test_breakpoint():
+  debugger = ReplayDebugger(client, "cve2020-10064-june13", 1, "0x402dbb_0x2000_jump_invalid")
 
-debugger.run()
+  # Test add_breakpoint, list_breakpoints.
+  debugger.add_breakpoint(0x402988)
+  assert debugger.list_breakpoints() == [0x402988], f"Breakpoints: {debugger.list_breakpoints()}"
 
-state = debugger.state()
-assert state['pc'] == 0x402988, f"PC: {hex(state['pc'])}"
-last_icount = state['icount']
+  debugger.run()
 
-exit_reason = debugger.step()
+  state = debugger.state()
+  assert state['pc'] == 0x402988, f"PC: {hex(state['pc'])}"
+  last_icount = state['icount']
 
-state = debugger.state()
-assert state['pc'] == 0x40298a, f"PC: {hex(state['pc'])}"
+  exit_reason = debugger.step()
 
-# Continue until breakpoint (0x402988 occurs several times).
-exit_reason = debugger.run()
-assert exit_reason == "breakpoint", f"Exit reason: {exit_reason}"
-state = debugger.state()
-assert state['icount'] > last_icount + 50, f"ICount: {state['icount']} Last ICount: {last_icount}"
+  state = debugger.state()
+  assert state['pc'] == 0x40298a, f"PC: {hex(state['pc'])}"
 
-# Test remove_breakpoint.
-debugger.remove_breakpoint(0x402988)
-assert debugger.list_breakpoints() == [], f"Breakpoints: {debugger.list_breakpoints()}"
+  # Continue until breakpoint (0x402988 occurs several times).
+  exit_reason = debugger.run()
+  assert exit_reason == "breakpoint", f"Exit reason: {exit_reason}"
+  state = debugger.state()
+  assert state['icount'] > last_icount + 50, f"ICount: {state['icount']} Last ICount: {last_icount}"
 
-# Continue to crashpoint (end of program).
-exit_reason = debugger.run()
-assert "ExecViolation" in exit_reason, f"Exit reason: {exit_reason}"
-# Test read_register.
-pc = debugger.read_register('pc')
-assert pc == 0x2000, f"PC: {hex(pc)}"
+  # Test remove_breakpoint.
+  debugger.remove_breakpoint(0x402988)
+  assert debugger.list_breakpoints() == [], f"Breakpoints: {debugger.list_breakpoints()}"
 
-# TODO: add_watchpoint, list_watchpoints, remove_watchpoint, write_memory, read_memory, disassemble, backtrace.
-# TODO: test write_register.
+  # Continue to crashpoint (end of program).
+  exit_reason = debugger.run()
+  assert "invalid_jump" in exit_reason, f"Exit reason: {exit_reason}"
+  # Test read_register.
+  pc = debugger.read_register('pc')
+  assert pc == 0x2000, f"PC: {hex(pc)}"
+
+  # Test rewind.
+  debugger.rewind()
+
+  state = debugger.state()
+  assert state['pc'] == 0x402dcc, f"PC: {hex(state['pc'])}"
+  assert state['icount'] == 0, f"ICount: {state['icount']}"
+
+
+def test_write_watchpoint():
+  # The memory at 0x20005ac4 is written at the following addresses: 0x40db3e, 0x40db78, 0x402c72
+  debugger = ReplayDebugger(client, "cve2020-10064-june13", 1, "0x402dbb_0x2000_jump_invalid")
+
+  debugger.add_watchpoint(0x20005ac4, WatchType.WRITE)
+
+  # Test list_watchpoints.
+  assert debugger.list_watchpoints() == [(0x20005ac4, WatchType.WRITE)], f"Watchpoints: {debugger.list_watchpoints()}"
+
+  debugger.run()
+
+  state = debugger.state()
+  assert state['pc'] == 0x40db3e, f"PC: {hex(state['pc'])}"
+
+  debugger.run()
+
+  state = debugger.state()
+  assert state['pc'] == 0x40db78, f"PC: {hex(state['pc'])}"
+
+
+  debugger.remove_watchpoint(0x20005ac4, WatchType.WRITE)
+  assert debugger.list_watchpoints() == [], f"Watchpoints: {debugger.list_watchpoints()}"
+
+  # Should now hit end of program instead of stopping at 0x402c72
+  exit_reason = debugger.run()
+  assert "invalid_jump" in exit_reason, f"Exit reason: {exit_reason}"
+  state = debugger.state()
+  assert state['pc'] == 0x2000, f"PC: {hex(state['pc'])}"
+
+def test_read_watchpoint():
+  # Test read_watchpoint. The memory at 0x20006400 is read at the following addresses: 0x402dba, 0x402dba, 0x4029ce, 0x402dba, 0x4029ce
+  debugger = ReplayDebugger(client, "cve2020-10064-june13", 1, "0x402dbb_0x2000_jump_invalid")
+
+  debugger.add_watchpoint(0x20006400, WatchType.READ)
+
+  debugger.run()
+
+  state = debugger.state()
+  assert state['pc'] == 0x402dba, f"PC: {hex(state['pc'])}"
+
+  debugger.run()
+
+  state = debugger.state()
+  assert state['pc'] == 0x402dba, f"PC: {hex(state['pc'])}"
+
+  # Should do nothing.
+  debugger.remove_watchpoint(0x20006400, WatchType.WRITE)
+
+  debugger.run()
+
+  state = debugger.state()
+  assert state['pc'] == 0x4029ce, f"PC: {hex(state['pc'])}"
+
+  debugger.run()
+
+  state = debugger.state()
+  assert state['pc'] == 0x402dba, f"PC: {hex(state['pc'])}"
+
+  # Remove watchpoint. Should now hit end of program instead of stopping at 0x4029ce.
+  debugger.remove_watchpoint(0x20006400, WatchType.READ)
+  assert debugger.list_watchpoints() == [], f"Watchpoints: {debugger.list_watchpoints()}"
+
+  exit_reason = debugger.run()
+  assert "invalid_jump" in exit_reason, f"Exit reason: {exit_reason}"
+  state = debugger.state()
+  assert state['pc'] == 0x2000, f"PC: {hex(state['pc'])}"
+
+def test_readwrite_watchpoint():
+  # Test readwrite_watchpoint. The memory at 0x200063f4 is:
+  # - WRITTEN at 0x40db78
+  # - WRITTEN at 0x40db3e
+  # - READ    at 0x40db6a
+  # - WRITTEN at 0x40dae8
+  # - READ    at 0x40dafc
+  # - WRITTEN at 0x40dae8
+  debugger = ReplayDebugger(client, "cve2020-10064-june13", 1, "0x402dbb_0x2000_jump_invalid")
+
+  debugger.add_watchpoint(0x200063f4, WatchType.READ)
+  debugger.add_watchpoint(0x200063f4, WatchType.WRITE)
+  exit_reason = debugger.run()
+  state = debugger.state()
+
+  assert state['pc'] == 0x40db78, f"PC: {hex(state['pc'])}"
+  assert exit_reason == "write_watch", f"Exit reason: {exit_reason}"
+
+  exit_reason = debugger.run()
+  state = debugger.state()
+  assert state['pc'] == 0x40db3e, f"PC: {hex(state['pc'])}"
+  assert exit_reason == "write_watch", f"Exit reason: {exit_reason}"
+
+  exit_reason = debugger.run()
+  state = debugger.state()
+  assert state['pc'] == 0x40db6a, f"PC: {hex(state['pc'])}"
+  assert exit_reason == "read_watch", f"Exit reason: {exit_reason}"
+
+  exit_reason = debugger.run()
+  state = debugger.state()
+  assert state['pc'] == 0x40dae8, f"PC: {hex(state['pc'])}"
+  assert exit_reason == "write_watch", f"Exit reason: {exit_reason}"
+
+  assert len(debugger.list_watchpoints()) == 2, f"Watchpoints: {debugger.list_watchpoints()}"
+  assert debugger.list_watchpoints()[0] == (0x200063f4, WatchType.READ), f"Watchpoints: {debugger.list_watchpoints()}"
+  assert debugger.list_watchpoints()[1] == (0x200063f4, WatchType.WRITE), f"Watchpoints: {debugger.list_watchpoints()}"
+
+  debugger.remove_watchpoint(0x200063f4, WatchType.WRITE)
+
+  # Remove the two should do nothing.
+  assert len(debugger.list_watchpoints()) == 1, f"Watchpoints: {debugger.list_watchpoints()}"
+  assert debugger.list_watchpoints()[0] == (0x200063f4, WatchType.READ), f"Watchpoints: {debugger.list_watchpoints()}"
+
+  exit_reason = debugger.run()
+  state = debugger.state()
+  assert state['pc'] == 0x40dafc, f"PC: {hex(state['pc'])}"
+  assert exit_reason == "read_watch", f"Exit reason: {exit_reason}"
+
+  debugger.remove_watchpoint(0x200063f4, WatchType.READ)
+  assert debugger.list_watchpoints() == [], f"Watchpoints: {debugger.list_watchpoints()}"
+
+  exit_reason = debugger.run()
+  assert "invalid_jump" in exit_reason, f"Exit reason: {exit_reason}"
+  state = debugger.state()
+  assert state['pc'] == 0x2000, f"PC: {hex(state['pc'])}"
+
+
+# TODO: write_memory, read_memory, disassemble, backtrace, write_register.
+
+test_step()
+test_breakpoint()
+test_write_watchpoint()
+test_read_watchpoint()
+test_readwrite_watchpoint()
