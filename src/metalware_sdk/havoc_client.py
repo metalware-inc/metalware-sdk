@@ -257,6 +257,20 @@ class HavocClient:
       raise RuntimeError(f"Symbol retrieval failed: {result['Err']}")
     else: return [Symbol.from_dict(symbol) for symbol in result['Ok']]
 
+  def get_testcases(self, project_name: str, run_id: int) -> List[Testcase]:
+    resp = self._make_request(
+      'GET',
+      f'/project/{project_name}/run/{run_id}/testcases'
+    )
+    return [Testcase.from_dict(testcase) for testcase in resp.json()]
+
+  def get_testcase_input(self, project_name: str, run_id: int, testcase_id: str) -> TestcaseInput:
+    resp = self._make_request(
+      'GET',
+      f'/project/{project_name}/run/{run_id}/testcase/{testcase_id}/input'
+    )
+    return TestcaseInput.from_bytes(resp.content)
+
   def start_debug_session(self, project_name: str, run_id: int, testcase_id: str) -> None:
     resp = self._make_request(
       'POST',

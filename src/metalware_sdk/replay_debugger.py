@@ -75,6 +75,7 @@ class ReplayDebugger:
     else: raise RuntimeError(result['message'])
 
   def write_memory(self, address: int, data: bytes) -> None:
+    if len(data) > 0x1000: raise RuntimeError("Cannot write more than 4096 bytes at once")
     self._send_command({"c": "write_mem", "address": address, "data": data})
 
   def disassemble(self) -> list[str]:

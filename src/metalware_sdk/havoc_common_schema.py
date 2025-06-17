@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import List, Optional, Any, TypeVar, Callable, Type, cast
+import io, struct
+from typing import List, Optional, Any, TypeVar, Callable, Type, cast, Dict
 
 
 T = TypeVar("T")
@@ -851,6 +852,93 @@ class TraceSummary:
         result: dict = {}
         result["entries"] = from_list(lambda x: to_class(TraceSummaryEntry, x), self.entries)
         return result
+
+class Testcase:
+    input_id: str
+    exit_reason: str
+    exit_pc: int
+    num_blocks: int
+    timestamp: str
+
+    def __init__(self, input_id: str, exit_reason: str, exit_pc: int, num_blocks: int, timestamp: str) -> None:
+        self.input_id = input_id
+        self.exit_reason = exit_reason
+        self.exit_pc = exit_pc
+        self.num_blocks = num_blocks
+        self.timestamp = timestamp
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'Testcase':
+        assert isinstance(obj, dict)
+        input_id = from_str(obj.get("input_id"))
+        exit_reason = from_str(obj.get("exit_reason"))
+        exit_pc = from_int(obj.get("exit_pc"))
+        num_blocks = from_int(obj.get("num_blocks"))
+        timestamp = from_str(obj.get("timestamp"))
+        return Testcase(input_id, exit_reason, exit_pc, num_blocks, timestamp)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        result["input_id"] = from_str(self.input_id)
+        result["exit_reason"] = from_str(self.exit_reason)
+        result["exit_pc"] = from_int(self.exit_pc)
+        result["num_blocks"] = from_int(self.num_blocks)
+        result["timestamp"] = from_str(self.timestamp)
+        return result
+
+    def __repr__(self) -> str:
+        return f"Testcase(input_id='{self.input_id}', exit_reason='{self.exit_reason}', exit_pc={hex(self.exit_pc)}, num_blocks={self.num_blocks}, timestamp='{self.timestamp}')"
+
+class TestcaseInput:
+    # A channel maps a (fuzzed) memory address to an ordered byte array.
+    channels: Dict[int, bytes]
+
+    def __init__(self, channels: Dict[int, bytes]) -> None:
+      self.channels = channels
+
+    def __repr__(self) -> str:
+      """
+       Address   | Data
+      -----------+-----
+      0x10000000 | 0x10000000-0x10000004
+      ...
+      """
+      max_item_count = max([len(channel) for channel in self.channels.values()])
+      header = "\n Address   " + "| Data\n"
+      header +=  "-----------|" + ("-" * (max_item_count * 3))  + "\n"
+      content = "\n".join([f"{hex(addr)} | {' '.join([f'{b:02x}' for b in data])}" for addr, data in self.channels.items()])
+      return header + content
+
+    @staticmethod
+    def from_bytes(bytes: bytes) -> 'TestcaseInput':
+        reader = io.BytesIO(bytes)
+        magic = reader.read(4)
+        if magic != b'hav\x02':
+          raise ValueError("Invalid version: " + str(magic))
+
+        try:
+          num_channels = struct.unpack('<I', reader.read(4))[0]
+          if num_channels > 0x10000:
+            raise ValueError("Too many channels")
+        except struct.error:
+          raise ValueError("Invalid input: failed to read number of channels")
+
+        channel_headers = []
+        for i in range(num_channels):
+          try:
+            channel_addr = struct.unpack('<Q', reader.read(8))[0]
+            channel_len = struct.unpack('<Q', reader.read(8))[0]
+            channel_headers.append((channel_addr, channel_len))
+          except struct.error:
+            raise ValueError("Invalid input: failed to read channel header")
+
+        channels = {}
+        for channel_addr, channel_len in channel_headers:
+          if channel_len > 0x100000:
+            raise ValueError("Channel too long")
+          channels[channel_addr] = reader.read(channel_len)
+
+        return TestcaseInput(channels)
 
 
 class UploadImageRequest:
