@@ -284,7 +284,6 @@ class Memory:
         result["size"] = from_int(self.size)
         return result
 
-
 class DeviceConfig:
     memory_layout: List[Memory]
 
@@ -302,6 +301,8 @@ class DeviceConfig:
         result["memory_layout"] = from_list(lambda x: to_class(Memory, x), self.memory_layout)
         return result
 
+    def pretty_string(self) -> str:
+        return json.dumps(self.to_dict(), indent=2)
 
 class FileMetadata:
     hash: str
@@ -417,7 +418,6 @@ class ImageFormat:
         if self.raw is not None:
             result["Raw"] = from_union([lambda x: to_class(RawImage, x), from_none], self.raw)
         return result
-
 
 class PatchType(Enum):
     NOP = "Nop"
@@ -903,9 +903,8 @@ class TestcaseInput:
       0x10000000 | 0x10000000-0x10000004
       ...
       """
-      max_item_count = max([len(channel) for channel in self.channels.values()])
       header = "\n Address   " + "| Data\n"
-      header +=  "-----------|" + ("-" * (max_item_count * 3))  + "\n"
+      header += "-----------|" + ("-" * 20) + "\n"
       content = "\n".join([f"{hex(addr)} | {' '.join([f'{b:02x}' for b in data])}" for addr, data in self.channels.items()])
       return header + content
 

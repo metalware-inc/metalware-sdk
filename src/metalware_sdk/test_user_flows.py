@@ -446,6 +446,7 @@ class TestHavoc(TestCase):
           testcases = client.get_testcases(project_name="px4_fmu-v5_default", run_id=1)
           time.sleep(1)
           if len(testcases) > 0:
+            print("input id =", testcases[0].input_id)
             input = client.get_testcase_input(project_name="px4_fmu-v5_default", run_id=1, testcase_id=testcases[0].input_id)
             print(input)
             found = True
