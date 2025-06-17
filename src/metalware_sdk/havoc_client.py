@@ -256,3 +256,39 @@ class HavocClient:
     if isinstance(result, dict) and 'Err' in result:
       raise RuntimeError(f"Symbol retrieval failed: {result['Err']}")
     else: return [Symbol.from_dict(symbol) for symbol in result['Ok']]
+
+  def get_testcases(self, project_name: str, run_id: int) -> List[Testcase]:
+    resp = self._make_request(
+      'GET',
+      f'/project/{project_name}/run/{run_id}/testcases'
+    )
+    return [Testcase.from_dict(testcase) for testcase in resp.json()]
+
+  def get_testcase_input(self, project_name: str, run_id: int, testcase_id: str) -> TestcaseInput:
+    resp = self._make_request(
+      'GET',
+      f'/project/{project_name}/run/{run_id}/testcase/{testcase_id}/input'
+    )
+    return TestcaseInput.from_bytes(resp.content)
+
+  def start_debug_session(self, project_name: str, run_id: int, testcase_id: str) -> None:
+    resp = self._make_request(
+      'POST',
+      f'/project/{project_name}/run/{run_id}/debug-session/{testcase_id}/start'
+    )
+    
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Debug session start failed: {result['Err']}")
+  
+  def send_debug_command(self, project_name: str, run_id: int, testcase_id: str, command: str) -> None:
+    resp = self._make_request(
+      'POST',
+      f'/project/{project_name}/run/{run_id}/debug-session/{testcase_id}/command',
+      json=command
+    )
+
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Debug command send failed: {result['Err']}")
+    else: return result['Ok']

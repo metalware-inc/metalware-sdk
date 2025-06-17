@@ -1,6 +1,7 @@
 from metalware_sdk.havoc_client import HavocClient
 from metalware_sdk.havoc_common_schema import *
 from unittest import TestCase, main, skip
+import time
 
 def pretty_device_config(device_config: DeviceConfig) -> str:
   result = ""
@@ -378,42 +379,42 @@ class TestHavoc(TestCase):
         self.assertEqual(image.patches[0].address, 0x20000000)
         self.assertEqual(image.patches[0].patch_type, PatchType.NOP)
 
-    def infer_and_dry_run(self, file_path: str, manual_entry_address: int = None, manual_memories: List[Memory] = []):
+    def infer_and_run(self, file_path: str, manual_entry_address: int = None, manual_memories: List[Memory] = [], dry_run: bool = True):
         client = HavocClient("http://localhost:8080")
         file_metadata = client.upload_file(file_path)
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
         for memory in manual_memories: inferred_config.device_config.memory_layout.append(memory)
         project_config = ProjectConfig(inferred_config.device_config)
-        project_name = file_path.split("/")[-1].split(".")[0] + ".tmp"
-        client.create_project(project_name, project_config, overwrite=True)
+        project_name = file_path.split("/")[-1].split(".")[0] + (".tmp" if dry_run else "")
+        client.create_project(project_name, project_config, overwrite=dry_run)
         image_config = inferred_config.image_config
         if manual_entry_address is not None: image_config.entry_address = manual_entry_address
         client.create_project_image(project_name=project_name, image_name="default", image_config=image_config)
-        client.start_run(project_name=project_name, config=RunConfig(image_name="default", dry_run=True))
+        client.start_run(project_name=project_name, config=RunConfig(image_name="default", dry_run=dry_run))
 
     def test_portenta_elf_infer(self):
-        self.infer_and_dry_run("test_binaries/portenta_STM32H747AII6_CM7.elf")
+        self.infer_and_run("test_binaries/portenta_STM32H747AII6_CM7.elf")
     
     def test_knickerbocker_elf_infer(self):
-        self.infer_and_dry_run("test_binaries/knickerbocker.elf")
+        self.infer_and_run("test_binaries/knickerbocker.elf")
 
     def test_floormat_infer(self):
-        self.infer_and_dry_run("test_binaries/floormat.elf")
+        self.infer_and_run("test_binaries/floormat.elf")
 
     def test_adi_ble_elf_infer(self):
-        self.infer_and_dry_run("test_binaries/ADI_periph_max32655.elf")
+        self.infer_and_run("test_binaries/ADI_periph_max32655.elf")
 
     def test_p2im_console_elf_infer(self):
-        self.infer_and_dry_run("test_binaries/p2im.console.elf", manual_entry_address=0x0)
+        self.infer_and_run("test_binaries/p2im.console.elf", manual_entry_address=0x0)
 
     def test_arducopter_elf_infer(self):
-        self.infer_and_dry_run("test_binaries/arducopter.elf")
+        self.infer_and_run("test_binaries/arducopter.elf")
 
     def test_silabs_bt_soc_elf_infer(self):
-        self.infer_and_dry_run("test_binaries/silabs_bt_soc_blinky_3.out")
+        self.infer_and_run("test_binaries/silabs_bt_soc_blinky_3.out")
 
     def test_simple_rom_unaligned_isr(self):
-        self.infer_and_dry_run("test_binaries/simple-rom-unaligned-isr-table.elf")
+        self.infer_and_run("test_binaries/simple-rom-unaligned-isr-table.elf")
 
     @skip("Skipping due to memory overlap")
     def test_hsm_host_elf_infer(self):
@@ -422,10 +423,39 @@ class TestHavoc(TestCase):
             Memory(base_addr=0x20010000, size=0x10000, memory_type=MemoryType.RAM),
             Memory(base_addr=0x20100000, size=0x100000, memory_type=MemoryType.RAM),
         ]
-        self.infer_and_dry_run("test_binaries/hsm_host_test_sb_hsm_pic32cz_ca90.X.debug.elf", manual_memories=manual_memories)
+        self.infer_and_run("test_binaries/hsm_host_test_sb_hsm_pic32cz_ca90.X.debug.elf", manual_memories=manual_memories)
 
     def test_px4_elf_infer(self):
-        self.infer_and_dry_run("test_binaries/px4_fmu-v5_default.elf", manual_entry_address=0x8008000)
+        self.infer_and_run("test_binaries/px4_fmu-v5_default.elf", manual_entry_address=0x8008000)
+
+    def test_get_testcases(self):
+        client = HavocClient("http://localhost:8080")
+        # stop run if it exists
+        try: client.stop_run(project_name="px4_fmu-v5_default", run_id=1)
+        except Exception as e: pass
+
+        # delete project if it exists
+        try: client.delete_project("px4_fmu-v5_default")
+        except Exception as e: pass
+
+        self.infer_and_run("test_binaries/px4_fmu-v5_default.elf", manual_entry_address=0x8008000, dry_run=False)
+
+        print("Waiting for testcases to be generated...")
+        found = False
+        for _ in range(60):
+          testcases = client.get_testcases(project_name="px4_fmu-v5_default", run_id=1)
+          time.sleep(1)
+          if len(testcases) > 0:
+            print("input id =", testcases[0].input_id)
+            input = client.get_testcase_input(project_name="px4_fmu-v5_default", run_id=1, testcase_id=testcases[0].input_id)
+            print(input)
+            found = True
+            break
+
+        # Stop run
+        client.stop_run(project_name="px4_fmu-v5_default", run_id=1)
+        if not found:
+          raise Exception("No testcases found")
 
 if __name__ == "__main__":
     main()
