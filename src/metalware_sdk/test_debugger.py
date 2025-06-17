@@ -263,8 +263,40 @@ def test_decompile_range():
 
   print("time to disassemble: ", time.monotonic() - start_time)
 
-# TODO: write_memory, read_memory, backtrace.
+def test_read_memory():
+  debugger = ReplayDebugger(client, "cve2020-10064-june13", 1, "0x402dbb_0x2000_jump_invalid")
+  debugger.add_breakpoint(0x40db78)
+  debugger.run()
 
+  assert debugger.read_memory(0x20005c08, 4) == [0x00, 0x00, 0x00, 0x00], f"Memory: {debugger.read_memory(0x20005c08, 4)}"
+  debugger.step()
+  assert debugger.read_memory(0x20005c08, 4) == [0xaa, 0xaa, 0xaa, 0xaa], f"Memory: {debugger.read_memory(0x20005c08, 4)}"
+
+  debugger.remove_breakpoint(0x40db78)
+  debugger.add_breakpoint(0x40dade)
+  debugger.run()
+
+  assert debugger.read_memory(0x2000a1e7, 1) != [0xe4], f"Memory: {debugger.read_memory(0x2000a1e7, 1)}"
+  debugger.step()
+  assert debugger.read_memory(0x2000a1e7, 1) == [0xe4], f"Memory: {debugger.read_memory(0x2000a1e7, 1)}"
+
+def test_read_memory_mmio():
+  debugger = ReplayDebugger(client, "cve2020-10064-june13", 1, "0x402dbb_0x2000_jump_invalid")
+  debugger.add_breakpoint(0x40db78)
+  debugger.run()
+
+  assert debugger.read_memory(0x400e1858, 4) == None, f"Memory: {debugger.read_memory(0x400e1858, 4)}"
+
+def test_backtrace():
+  debugger = ReplayDebugger(client, "cve2020-10064-june13", 1, "0x402dbb_0x2000_jump_invalid")
+  debugger.add_breakpoint(0x40db78)
+  debugger.run()
+
+  debugger.print_backtrace()
+  assert debugger.backtrace() == [0x40db78], f"Backtrace: {debugger.backtrace()}"
+
+
+# TODO: write_memory, backtrace.
 test_step()
 test_breakpoint()
 test_write_watchpoint()
@@ -274,3 +306,6 @@ test_write_register_branch_target()
 test_write_register_comparison()
 test_write_register_invalid()
 test_decompile_range()
+test_read_memory()
+test_read_memory_mmio()
+# test_backtrace()

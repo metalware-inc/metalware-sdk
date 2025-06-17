@@ -7,7 +7,6 @@ class WatchType(Enum):
   READ = "read"
   WRITE = "write"
 
-
 class ReplayDebugger:
   def __init__(self, client: HavocClient, project_name: str, run_id: int, testcase_id: str):
     self._client = client
@@ -112,6 +111,11 @@ class ReplayDebugger:
     result = self._send_command({"c": "backtrace"})
     if 'data' in result and 'backtrace' in result['data']: return result['data']['backtrace']
     else: raise RuntimeError(result['message'])
+
+  def print_backtrace(self):
+    backtrace = self.backtrace()
+    for pc in backtrace:
+      print(f"{hex(pc)}")
 
   def rewind(self) -> None:
     result = self._send_command({"c": "rewind"})
