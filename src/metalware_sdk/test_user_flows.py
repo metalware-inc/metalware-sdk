@@ -2,6 +2,7 @@ from metalware_sdk.havoc_client import HavocClient
 from metalware_sdk.havoc_common_schema import *
 from unittest import TestCase, main, skip
 import time
+import os
 
 def pretty_device_config(device_config: DeviceConfig) -> str:
   result = ""
@@ -17,9 +18,11 @@ def get_rom_addr(device_config: DeviceConfig) -> int:
           return memory.base_addr
   raise Exception("ROM address not found")
 
+HOST_URL = "http://localhost:8080" if os.getenv("HOST_URL") is None else os.getenv("HOST_URL")
+
 class TestHavoc(TestCase):
     def test_alias_elf(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         file_metadata = client.upload_file("test_binaries/alias-test.elf")
 
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
@@ -37,7 +40,7 @@ class TestHavoc(TestCase):
         client.start_run(project_name="alias-test.tmp", config=RunConfig(image_name="default", dry_run=True))
 
     def test_zephyr_rom_infer(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         file_metadata = client.upload_file("test_binaries/zephyr-10064.bin")
 
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
@@ -52,7 +55,7 @@ class TestHavoc(TestCase):
         client.start_run(project_name="zephyr-10064.tmp", config=RunConfig(image_name="default", dry_run=True))
 
     def test_zephyr_rom_no_infer(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
 
         device_config = DeviceConfig(memory_layout=[
            Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM),
@@ -76,7 +79,7 @@ class TestHavoc(TestCase):
         client.start_run(project_name="zephyr-10064.tmp", config=RunConfig(image_name="default", dry_run=True))
 
     def test_zephyr_elf(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         file_metadata = client.upload_file("test_binaries/zephyr-10064.elf")
 
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
@@ -91,7 +94,7 @@ class TestHavoc(TestCase):
         client.start_run(project_name="zephyr-10064.tmp", config=RunConfig(image_name="default", dry_run=True))
 
     def test_overlapping_regions(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
 
         device_config = DeviceConfig(memory_layout=[
             Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM),
@@ -113,7 +116,7 @@ class TestHavoc(TestCase):
             self.assertTrue("overlaps" in str(context.exception))
 
     def test_missing_regions(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
 
         device_config = DeviceConfig(memory_layout=[
             Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM),
@@ -135,7 +138,7 @@ class TestHavoc(TestCase):
             self.assertTrue("missing" in str(context.exception))
 
     def test_undersized_rom(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
 
         device_config = DeviceConfig(memory_layout=[
            Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM),
@@ -158,7 +161,7 @@ class TestHavoc(TestCase):
             self.assertTrue("too small" in str(context.exception))
 
     def test_create_rename_delete_project(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         # Create project
         client.create_project("dummy.tmp", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=True)
 
@@ -181,7 +184,7 @@ class TestHavoc(TestCase):
             client.get_project_config("dummy")
 
     def test_set_project_config(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
 
         try: client.delete_project("dummy-2")
         except Exception as e: pass
@@ -221,7 +224,7 @@ class TestHavoc(TestCase):
             client.get_project_config("dummy-2")
 
     def test_multi_segment_raw_image(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
 
         # Create project
         device_config = DeviceConfig(memory_layout=[
@@ -250,7 +253,7 @@ class TestHavoc(TestCase):
         client.start_run(project_name="multi-segment-raw-image.tmp", config=RunConfig(image_name="default", dry_run=True))
 
     def test_set_get_image_symbols(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
 
         # Create project
         client.create_project("dummy.tmp", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=True)
@@ -289,7 +292,7 @@ class TestHavoc(TestCase):
         self.assertEqual(symbols[1].size, 0x1)
     
     def test_get_image_symbols_new_image(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
 
         # Create project
         client.create_project("dummy.tmp", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=True)
@@ -309,20 +312,20 @@ class TestHavoc(TestCase):
         self.assertEqual(len(symbols), 5)
 
     def test_create_project_overwrite_fail(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         with self.assertRaises(Exception) as context:
             client.create_project("dummy", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=True)
         self.assertTrue("when overwriting" in str(context.exception))
 
     def test_create_project_same_name_fail(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         with self.assertRaises(Exception) as context:
             client.create_project("dummyxxl", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=False)
             client.create_project("dummyxxl", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=False)
         self.assertTrue("already taken" in str(context.exception))
 
     def test_create_get_project_image(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
 
         # Create project
         client.create_project("dummy.tmp", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=True)
@@ -346,7 +349,7 @@ class TestHavoc(TestCase):
         self.assertEqual(image.image_format.elf, file_metadata.hash)
 
     def test_update_project_image(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
 
         # Create project
         client.create_project("dummy.tmp", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=True)
@@ -380,17 +383,19 @@ class TestHavoc(TestCase):
         self.assertEqual(image.patches[0].patch_type, PatchType.NOP)
 
     def infer_and_run(self, file_path: str, manual_entry_address: int = None, manual_memories: List[Memory] = [], dry_run: bool = True):
-        client = HavocClient("http://localhost:8080")
-        file_metadata = client.upload_file(file_path)
-        inferred_config = client.infer_config(file_hash=file_metadata.hash)
-        for memory in manual_memories: inferred_config.device_config.memory_layout.append(memory)
-        project_config = ProjectConfig(inferred_config.device_config)
-        project_name = file_path.split("/")[-1].split(".")[0] + (".tmp" if dry_run else "")
-        client.create_project(project_name, project_config, overwrite=dry_run)
-        image_config = inferred_config.image_config
-        if manual_entry_address is not None: image_config.entry_address = manual_entry_address
-        client.create_project_image(project_name=project_name, image_name="default", image_config=image_config)
-        client.start_run(project_name=project_name, config=RunConfig(image_name="default", dry_run=dry_run))
+      client = HavocClient(HOST_URL)
+      file_metadata = client.upload_file(file_path)
+      inferred_config = client.infer_config(file_hash=file_metadata.hash)
+      # Remove all memories that share base addres with manual memories
+      inferred_config.device_config.memory_layout = [memory for memory in inferred_config.device_config.memory_layout if memory.base_addr not in [memory.base_addr for memory in manual_memories]]
+      for memory in manual_memories: inferred_config.device_config.memory_layout.append(memory)
+      project_config = ProjectConfig(inferred_config.device_config)
+      project_name = file_path.split("/")[-1].split(".")[0] + (".tmp" if dry_run else "")
+      client.create_project(project_name, project_config, overwrite=dry_run)
+      image_config = inferred_config.image_config
+      if manual_entry_address is not None: image_config.entry_address = manual_entry_address
+      client.create_project_image(project_name=project_name, image_name="default", image_config=image_config)
+      client.start_run(project_name=project_name, config=RunConfig(image_name="default", dry_run=dry_run))
 
     def test_portenta_elf_infer(self):
         self.infer_and_run("test_binaries/portenta_STM32H747AII6_CM7.elf")
@@ -429,7 +434,7 @@ class TestHavoc(TestCase):
         self.infer_and_run("test_binaries/px4_fmu-v5_default.elf", manual_entry_address=0x8008000)
 
     def test_get_testcases(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         # stop run if it exists
         try: client.stop_run(project_name="px4_fmu-v5_default", run_id=1)
         except Exception as e: pass
@@ -454,8 +459,58 @@ class TestHavoc(TestCase):
 
         # Stop run
         client.stop_run(project_name="px4_fmu-v5_default", run_id=1)
-        if not found:
-          raise Exception("No testcases found")
+        if not found: raise Exception("No testcases found")
+
+    def delete_project(self, project_name: str, run_id: int = 1):
+      client = HavocClient(HOST_URL)
+      try: client.stop_run(project_name=project_name, run_id=run_id)
+      except Exception as e: pass
+      try: client.delete_project(project_name)
+      except Exception as e: pass
+
+    def test_executable_ram_binary_ok(self):
+      """
+      This test makes sure that a binary that executes from RAM crashes with the expected flag (0xdeadbeef).
+      This proves RAM execution works when enabled.
+      """
+      client = HavocClient(HOST_URL)
+      self.delete_project("executable_ram")
+      self.infer_and_run("test_binaries/executable_ram.elf", manual_memories=[Memory(base_addr=0x20000000, size=0x100000, memory_type=MemoryType.RAM, executable=True)], dry_run=False)
+      print("Waiting for testcases to be generated...")
+      found_flag = False
+      for _ in range(60):
+        if found_flag: break
+        testcases = client.get_testcases(project_name="executable_ram", run_id=1)
+        time.sleep(1)
+        for testcase in testcases:
+          if '0xdeadbeef' in testcase.exit_reason:
+            print(f"Found testcase containing flag: {testcase.exit_reason}")
+            found_flag = True
+            break
+      client.stop_run(project_name="executable_ram", run_id=1)
+      if not found_flag: raise Exception("Could not find testcase containing flag")
+
+    def test_executable_ram_binary_fail(self):
+      """
+      This test makes sure that a binary that executes from RAM crashes with the expected flag (0x20000000).
+      This proves RAM execution fails as expected when NOT enabled.
+      """
+      client = HavocClient(HOST_URL)
+      self.delete_project("executable_ram")
+      self.infer_and_run("test_binaries/executable_ram.elf", dry_run=False)
+      print("Waiting for testcases to be generated...")
+      found_flag = False
+      for _ in range(60):
+        if found_flag: break
+        testcases = client.get_testcases(project_name="executable_ram", run_id=1)
+        time.sleep(1)
+        for testcase in testcases:
+          if '0x20000000' in testcase.exit_reason:
+            print(f"Found testcase containing flag: {testcase.exit_reason}")
+            found_flag = True
+            break
+      client.stop_run(project_name="executable_ram", run_id=1)
+      if not found_flag: raise Exception("Could not find testcase containing flag")
 
 if __name__ == "__main__":
     main()

@@ -246,14 +246,15 @@ class MemoryType(Enum):
 class Memory:
     aliased_to: Optional[int]
     base_addr: int
+    executable: Optional[bool]
     file: Optional[MemoryFile]
     fill: Optional[int]
     memory_type: MemoryType
     size: int
 
-    #def __init__(self, aliased_to: Optional[int], base_addr: int, file: Optional[MemoryFile], fill: Optional[int], memory_type: MemoryType, size: int) -> None:
-    def __init__(self, base_addr: int, size: int, memory_type: MemoryType, aliased_to: Optional[int] = None, file: Optional[MemoryFile] = None, fill: Optional[int] = None) -> None:
+    def __init__(self, base_addr: int, size: int, memory_type: MemoryType, aliased_to: Optional[int] = None, file: Optional[MemoryFile] = None, fill: Optional[int] = None, executable: Optional[bool] = None) -> None:
         self.base_addr = base_addr
+        self.executable = executable
         self.size = size
         self.memory_type = memory_type
         self.aliased_to = aliased_to
@@ -265,17 +266,20 @@ class Memory:
         assert isinstance(obj, dict)
         aliased_to = from_union([from_none, from_int], obj.get("aliased_to"))
         base_addr = from_int(obj.get("base_addr"))
+        executable = from_union([from_none, from_bool], obj.get("executable"))
         file = from_union([MemoryFile.from_dict, from_none], obj.get("file"))
         fill = from_union([from_none, from_int], obj.get("fill"))
         memory_type = MemoryType(obj.get("memory_type"))
         size = from_int(obj.get("size"))
-        return Memory(base_addr, size, memory_type, aliased_to, file, fill)
+        return Memory(base_addr, size, memory_type, aliased_to, file, fill, executable)
 
     def to_dict(self) -> dict:
         result: dict = {}
         if self.aliased_to is not None:
             result["aliased_to"] = from_union([from_none, from_int], self.aliased_to)
         result["base_addr"] = from_int(self.base_addr)
+        if self.executable is not None:
+            result["executable"] = from_union([from_none, from_bool], self.executable)
         if self.file is not None:
             result["file"] = from_union([lambda x: to_class(MemoryFile, x), from_none], self.file)
         if self.fill is not None:

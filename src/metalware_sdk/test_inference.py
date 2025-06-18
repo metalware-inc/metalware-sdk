@@ -2,9 +2,11 @@ from metalware_sdk.havoc_client import HavocClient
 from metalware_sdk.havoc_common_schema import DeviceConfig, Memory, MemoryType
 import unittest
 
+HOST_URL = "http://localhost:8080" if os.getenv("HOST_URL") is None else os.getenv("HOST_URL")
+
 class TestInference(unittest.TestCase):
     def test_mismatching_file_and_memsizes_elf(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         file_metadata = client.upload_file("test_binaries/mismatching_file_mem_sizes.elf")
 
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
@@ -45,7 +47,7 @@ class TestInference(unittest.TestCase):
         self.assertEqual(device_config.memory_layout[2].file, None)
 
     def test_zephyr_10064_elf(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         file_metadata = client.upload_file("test_binaries/zephyr-10064.elf")
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
         device_config = inferred_config.device_config
@@ -76,7 +78,7 @@ class TestInference(unittest.TestCase):
         self.assertEqual(device_config.memory_layout[2].file, None)
 
     def test_px4_fmu_v5_elf(self): # distance between merged segments > 0x0.
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         file_metadata = client.upload_file("test_binaries/px4_fmu-v5_default.elf")
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
         device_config = inferred_config.device_config
@@ -107,7 +109,7 @@ class TestInference(unittest.TestCase):
         self.assertEqual(device_config.memory_layout[3].file, None)
 
     def test_floormat_elf(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         file_metadata = client.upload_file("test_binaries/floormat.elf")
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
         device_config = inferred_config.device_config
@@ -152,7 +154,7 @@ class TestInference(unittest.TestCase):
         self.assertEqual(device_config.memory_layout[4].file, None)
 
     def test_portenta_stm32h747_elf(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         file_metadata = client.upload_file("test_binaries/portenta_STM32H747AII6_CM7.elf")
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
         device_config = inferred_config.device_config
@@ -216,7 +218,7 @@ class TestInference(unittest.TestCase):
         self.assertEqual(device_config.memory_layout[5].file, None)
 
     def test_p2im_console_elf(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         file_metadata = client.upload_file("test_binaries/p2im.console.elf")
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
         device_config = inferred_config.device_config
@@ -257,7 +259,7 @@ class TestInference(unittest.TestCase):
         self.assertEqual(device_config.memory_layout[2].file, None)
 
     def test_knickerbocker_elf(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         file_metadata = client.upload_file("test_binaries/knickerbocker.elf")
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
         device_config = inferred_config.device_config
@@ -302,7 +304,7 @@ class TestInference(unittest.TestCase):
         self.assertEqual(device_config.memory_layout[3].file, None)
 
     def test_adi_periph_max32655_elf(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient(HOST_URL)
         file_metadata = client.upload_file("test_binaries/ADI_periph_max32655.elf")
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
         device_config = inferred_config.device_config
@@ -342,7 +344,7 @@ class TestInference(unittest.TestCase):
         self.assertEqual(device_config.memory_layout[3].file, None)
 
     def test_arducopter_elf(self):
-        client = HavocClient("http://localhost:8080")
+        client = HavocClient("http://localhost:8081")
         file_metadata = client.upload_file("test_binaries/arducopter.elf")
         inferred_config = client.infer_config(file_hash=file_metadata.hash)
         device_config = inferred_config.device_config
