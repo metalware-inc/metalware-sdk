@@ -890,19 +890,13 @@ class Testcase:
         return f"Testcase(input_id='{self.input_id}', exit_reason='{self.exit_reason}', exit_pc={hex(self.exit_pc)}, num_blocks={self.num_blocks}, timestamp='{self.timestamp}')"
 
 class TestcaseInput:
-    # A channel maps a (fuzzed) memory address to an ordered byte array.
+    # A channel is a (fuzzed) memory location with a corresponding byte array.
     channels: Dict[int, bytes]
 
     def __init__(self, channels: Dict[int, bytes]) -> None:
       self.channels = channels
 
     def __repr__(self) -> str:
-      """
-       Address   | Data
-      -----------+-----
-      0x10000000 | 0x10000000-0x10000004
-      ...
-      """
       header = "\n Address   " + "| Data\n"
       header += "-----------|" + ("-" * 20) + "\n"
       content = "\n".join([f"{hex(addr)} | {' '.join([f'{b:02x}' for b in data])}" for addr, data in self.channels.items()])
