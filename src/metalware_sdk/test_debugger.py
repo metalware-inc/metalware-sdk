@@ -1,6 +1,7 @@
 from metalware_sdk.havoc_client import HavocClient
 from metalware_sdk.replay_debugger import ReplayDebugger, WatchType
 import time
+import os
 
 HOST_URL = "http://localhost:8080" if os.getenv("HOST_URL") is None else os.getenv("HOST_URL")
 client = HavocClient(base_url=HOST_URL)

@@ -1,6 +1,7 @@
 from metalware_sdk.havoc_client import HavocClient
 from metalware_sdk.havoc_common_schema import DeviceConfig, Memory, MemoryType
 import unittest
+import os
 
 HOST_URL = "http://localhost:8080" if os.getenv("HOST_URL") is None else os.getenv("HOST_URL")
 
