@@ -23,7 +23,7 @@ HOST_URL = "http://localhost:8080" if os.getenv("HOST_URL") is None else os.gete
 class TestHavoc(TestCase):
   def test_alias_elf(self):
     client = HavocClient(HOST_URL)
-    file_metadata = client.upload_file("test_binaries/alias-test.elf")
+    file_metadata = client.upload_file("ci-resources/test-binaries/alias-test.elf")
 
     inferred_config = client.infer_config(file_hash=file_metadata.hash)
     device_config = inferred_config.device_config
@@ -41,7 +41,7 @@ class TestHavoc(TestCase):
 
   def test_zephyr_rom_infer(self):
     client = HavocClient(HOST_URL)
-    file_metadata = client.upload_file("test_binaries/zephyr-10064.bin")
+    file_metadata = client.upload_file("ci-resources/test-binaries/zephyr-10064.bin")
 
     inferred_config = client.infer_config(file_hash=file_metadata.hash)
     device_config = inferred_config.device_config
@@ -67,7 +67,7 @@ class TestHavoc(TestCase):
     client.create_project("zephyr-10064.tmp", project_config, overwrite=True)
 
     # Upload ROM
-    upload_metadata = client.upload_file("test_binaries/zephyr-10064.bin")
+    upload_metadata = client.upload_file("ci-resources/test-binaries/zephyr-10064.bin")
 
     # Create ImageConfig
     raw_image = RawImage(segments=[RawImageSegment(address=0x400000, hash=upload_metadata.hash)])
@@ -80,7 +80,7 @@ class TestHavoc(TestCase):
 
   def test_zephyr_elf(self):
     client = HavocClient(HOST_URL)
-    file_metadata = client.upload_file("test_binaries/zephyr-10064.elf")
+    file_metadata = client.upload_file("ci-resources/test-binaries/zephyr-10064.elf")
 
     inferred_config = client.infer_config(file_hash=file_metadata.hash)
     device_config = inferred_config.device_config
@@ -106,7 +106,7 @@ class TestHavoc(TestCase):
     project_config = ProjectConfig(device_config)
     client.create_project("zephyr-10064.tmp", project_config, overwrite=True)
 
-    upload_metadata = client.upload_file("test_binaries/zephyr-10064.elf")
+    upload_metadata = client.upload_file("ci-resources/test-binaries/zephyr-10064.elf")
 
     image_config = ImageConfig(entry_address=0x400000, image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=upload_metadata.hash))
     client.create_project_image(project_name="zephyr-10064.tmp", image_name="default", image_config=image_config)
@@ -127,7 +127,7 @@ class TestHavoc(TestCase):
     project_config = ProjectConfig(device_config)
     client.create_project("zephyr-10064.tmp", project_config, overwrite=True)
 
-    upload_metadata = client.upload_file("test_binaries/zephyr-10064.elf")
+    upload_metadata = client.upload_file("ci-resources/test-binaries/zephyr-10064.elf")
 
     image_config = ImageConfig(entry_address=0x400000, image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=upload_metadata.hash))
     client.create_project_image(project_name="zephyr-10064.tmp", image_name="default", image_config=image_config)
@@ -149,7 +149,7 @@ class TestHavoc(TestCase):
     project_config = ProjectConfig(device_config)
     client.create_project("zephyr-10064.tmp", project_config, overwrite=True)
 
-    upload_metadata = client.upload_file("test_binaries/zephyr-10064.bin")
+    upload_metadata = client.upload_file("ci-resources/test-binaries/zephyr-10064.bin")
 
     raw_image = RawImage(segments=[RawImageSegment(address=0x400000, hash=upload_metadata.hash)])
 
@@ -237,8 +237,8 @@ class TestHavoc(TestCase):
     client.create_project("multi-segment-raw-image.tmp", ProjectConfig(device_config), overwrite=True)
 
     # Upload ROM
-    bootloader = client.upload_file("test_binaries/simple-bootloader/bootloader.bin")
-    app = client.upload_file("test_binaries/simple-bootloader/app.bin")
+    bootloader = client.upload_file("ci-resources/test-binaries/simple-bootloader/bootloader.bin")
+    app = client.upload_file("ci-resources/test-binaries/simple-bootloader/app.bin")
 
     # Create image
     raw_image = RawImage(segments=[
@@ -259,7 +259,7 @@ class TestHavoc(TestCase):
     client.create_project("dummy.tmp", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=True)
 
     # Upload elf
-    file_metadata = client.upload_file("test_binaries/alias-test.elf")
+    file_metadata = client.upload_file("ci-resources/test-binaries/alias-test.elf")
 
     # Create image
     image_config = ImageConfig(entry_address=0x400000, image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash))
@@ -298,7 +298,7 @@ class TestHavoc(TestCase):
     client.create_project("dummy.tmp", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=True)
 
     # Upload elf
-    file_metadata = client.upload_file("test_binaries/alias-test.elf")
+    file_metadata = client.upload_file("ci-resources/test-binaries/alias-test.elf")
 
     # Create image
     try: client.delete_image(project_name="dummy.tmp", image_name="default")
@@ -335,7 +335,7 @@ class TestHavoc(TestCase):
     self.assertEqual(len(images), 0)
 
     # Create image
-    file_metadata = client.upload_file("test_binaries/alias-test.elf")
+    file_metadata = client.upload_file("ci-resources/test-binaries/alias-test.elf")
     client.create_project_image(project_name="dummy.tmp", image_name="default", image_config=ImageConfig(entry_address=0x400000, image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash)))
 
     # Get project images
@@ -355,7 +355,7 @@ class TestHavoc(TestCase):
     client.create_project("dummy.tmp", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=True)
 
     # Upload elf
-    file_metadata = client.upload_file("test_binaries/alias-test.elf")
+    file_metadata = client.upload_file("ci-resources/test-binaries/alias-test.elf")
 
     # Create image
     image_config = ImageConfig(entry_address=0x400000, image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash))
@@ -368,7 +368,7 @@ class TestHavoc(TestCase):
     self.assertEqual(len(image.patches), 0)
 
     # Upload another elf
-    file_metadata = client.upload_file("test_binaries/zephyr-10064.elf")
+    file_metadata = client.upload_file("ci-resources/test-binaries/zephyr-10064.elf")
 
     # Update image
     image_config = ImageConfig(entry_address=0x400000, image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash), patches=[Patch(address=0x20000000, patch_type=PatchType.NOP)])
@@ -398,28 +398,28 @@ class TestHavoc(TestCase):
     client.start_run(project_name=project_name, config=RunConfig(image_name="default", dry_run=dry_run))
 
   def test_portenta_elf_infer(self):
-    self.infer_and_run("test_binaries/portenta_STM32H747AII6_CM7.elf")
+    self.infer_and_run("ci-resources/test-binaries/portenta_STM32H747AII6_CM7.elf")
   
   def test_knickerbocker_elf_infer(self):
-    self.infer_and_run("test_binaries/knickerbocker.elf")
+    self.infer_and_run("ci-resources/test-binaries/knickerbocker.elf")
 
   def test_floormat_infer(self):
-    self.infer_and_run("test_binaries/floormat.elf")
+    self.infer_and_run("ci-resources/test-binaries/floormat.elf")
 
   def test_adi_ble_elf_infer(self):
-    self.infer_and_run("test_binaries/ADI_periph_max32655.elf")
+    self.infer_and_run("ci-resources/test-binaries/ADI_periph_max32655.elf")
 
   def test_p2im_console_elf_infer(self):
-    self.infer_and_run("test_binaries/p2im.console.elf", manual_entry_address=0x0)
+    self.infer_and_run("ci-resources/test-binaries/p2im.console.elf", manual_entry_address=0x0)
 
   def test_arducopter_elf_infer(self):
-    self.infer_and_run("test_binaries/arducopter.elf")
+    self.infer_and_run("ci-resources/test-binaries/arducopter.elf")
 
   def test_silabs_bt_soc_elf_infer(self):
-    self.infer_and_run("test_binaries/silabs_bt_soc_blinky_3.out")
+    self.infer_and_run("ci-resources/test-binaries/silabs_bt_soc_blinky_3.out")
 
   def test_simple_rom_unaligned_isr(self):
-    self.infer_and_run("test_binaries/simple-rom-unaligned-isr-table.elf")
+    self.infer_and_run("ci-resources/test-binaries/simple-rom-unaligned-isr-table.elf")
 
   @skip("Skipping due to memory overlap")
   def test_hsm_host_elf_infer(self):
@@ -428,10 +428,10 @@ class TestHavoc(TestCase):
       Memory(base_addr=0x20010000, size=0x10000, memory_type=MemoryType.RAM),
       Memory(base_addr=0x20100000, size=0x100000, memory_type=MemoryType.RAM),
     ]
-    self.infer_and_run("test_binaries/hsm_host_test_sb_hsm_pic32cz_ca90.X.debug.elf", manual_memories=manual_memories)
+    self.infer_and_run("ci-resources/test-binaries/hsm_host_test_sb_hsm_pic32cz_ca90.X.debug.elf", manual_memories=manual_memories)
 
   def test_px4_elf_infer(self):
-    self.infer_and_run("test_binaries/px4_fmu-v5_default.elf", manual_entry_address=0x8008000)
+    self.infer_and_run("ci-resources/test-binaries/px4_fmu-v5_default.elf", manual_entry_address=0x8008000)
 
   def test_get_testcases(self):
     client = HavocClient(HOST_URL)
@@ -443,7 +443,7 @@ class TestHavoc(TestCase):
     try: client.delete_project("px4_fmu-v5_default")
     except Exception as e: pass
 
-    self.infer_and_run("test_binaries/px4_fmu-v5_default.elf", manual_entry_address=0x8008000, dry_run=False)
+    self.infer_and_run("ci-resources/test-binaries/px4_fmu-v5_default.elf", manual_entry_address=0x8008000, dry_run=False)
 
     print("Waiting for testcases to be generated...")
     found = False
@@ -475,7 +475,7 @@ class TestHavoc(TestCase):
     """
     client = HavocClient(HOST_URL)
     self.delete_project("executable_ram")
-    self.infer_and_run("test_binaries/executable_ram.elf", manual_memories=[Memory(base_addr=0x20000000, size=0x100000, memory_type=MemoryType.RAM, executable=True)], dry_run=False)
+    self.infer_and_run("ci-resources/test-binaries/executable_ram.elf", manual_memories=[Memory(base_addr=0x20000000, size=0x100000, memory_type=MemoryType.RAM, executable=True)], dry_run=False)
     print("Waiting for testcases to be generated...")
     found_flag = False
     for _ in range(60):
@@ -497,7 +497,7 @@ class TestHavoc(TestCase):
     """
     client = HavocClient(HOST_URL)
     self.delete_project("executable_ram")
-    self.infer_and_run("test_binaries/executable_ram.elf", dry_run=False)
+    self.infer_and_run("ci-resources/test-binaries/executable_ram.elf", dry_run=False)
     print("Waiting for testcases to be generated...")
     found_flag = False
     for _ in range(60):

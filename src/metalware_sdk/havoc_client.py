@@ -20,6 +20,10 @@ class HavocClient:
     except requests.exceptions.RequestException as e:
       raise RuntimeError(f"Request to {url} failed: {str(e)}. Response: {resp.text}")
 
+  def get_projects(self) -> List[Tuple[str, int]]:
+    resp = self._make_request('GET', '/api/projects')
+    return resp.json()
+
   def upload_file(self, file_path: str, label: str = "unnamed") -> FileMetadata:
     if not os.path.exists(file_path):
       raise FileNotFoundError(f"File not found: {file_path}")
@@ -292,3 +296,37 @@ class HavocClient:
     if isinstance(result, dict) and 'Err' in result:
       raise RuntimeError(f"Debug command send failed: {result['Err']}")
     else: return result['Ok']
+
+  def inject_project(self, zip_path: str) -> None:
+    if not os.path.exists(zip_path):
+      raise FileNotFoundError(f"File not found: {zip_path}")
+
+    with open(zip_path, 'rb') as f:
+      zip_data = f.read()
+
+    resp = self._make_request(
+      'POST',
+      f'/inject-project',
+      data=zip_data
+    )
+
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Project injection failed: {result['Err']}")
+
+  def inject_image(self, zip_path: str) -> None:
+    if not os.path.exists(zip_path):
+      raise FileNotFoundError(f"File not found: {zip_path}")
+
+    with open(zip_path, 'rb') as f:
+      zip_data = f.read()
+
+    resp = self._make_request(
+      'POST',
+      f'/inject-image',
+      data=zip_data,
+    )
+
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Image injection failed: {result['Err']}")

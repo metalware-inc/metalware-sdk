@@ -70,13 +70,20 @@ class ReplayDebugger:
     else: raise RuntimeError(result['message'])
 
   def read_memory(self, address: int, size: int) -> bytes:
+    if not isinstance(address, int): raise TypeError(f"Address must be int, got {type(address)}")
+    if not isinstance(size, int): raise TypeError(f"Size must be int, got {type(size)}")
+    if size > 0x1000: raise RuntimeError("Cannot read more than 4096 bytes at once")
     result = self._send_command({"c": "read_mem", "address": address, "size": size})
-    if 'data' in result: return result['data']
+    if 'data' in result and result['data'] is not None: return bytes(result['data'])
     else: raise RuntimeError(result['message'])
 
   def write_memory(self, address: int, data: bytes) -> None:
+    if not isinstance(data, bytes): raise TypeError(f"Data must be bytes, got {type(data)}")
     if len(data) > 0x1000: raise RuntimeError("Cannot write more than 4096 bytes at once")
-    self._send_command({"c": "write_mem", "address": address, "data": data})
+    print("Data as hex: ", data.hex())
+    result = self._send_command({"c": "write_mem", "address": address, "data": data.hex()})
+    if 'success' in result and result['success']: return
+    else: raise RuntimeError(result['message'])
 
   def disassemble(self) -> list[str]:
     result = self._send_command({"c": "disassemble"})
