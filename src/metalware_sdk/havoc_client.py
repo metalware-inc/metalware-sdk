@@ -18,10 +18,10 @@ class HavocClient:
       resp.raise_for_status()
       return resp
     except requests.exceptions.RequestException as e:
-      raise RuntimeError(f"Request to {url} failed: {str(e)}. Response: {resp.text}")
+      raise RuntimeError(f"Request to {url} failed: {str(e)}.")
 
   def get_projects(self) -> List[Tuple[str, int]]:
-    resp = self._make_request('GET', '/api/projects')
+    resp = self._make_request('GET', '/projects')
     return resp.json()
 
   def upload_file(self, file_path: str, label: str = "unnamed") -> FileMetadata:
