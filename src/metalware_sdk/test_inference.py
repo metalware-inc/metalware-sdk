@@ -10,8 +10,7 @@ class TestInference(unittest.TestCase):
     client = HavocClient(HOST_URL)
     file_metadata = client.upload_file("ci-resources/test-binaries/mismatching_file_mem_sizes.elf")
 
-    inferred_config = client.infer_config(file_hash=file_metadata.hash)
-    device_config = inferred_config.device_config
+    device_config, _ = client.infer_config(file_hash=file_metadata.hash)
 
     self.assertEqual(len(device_config.memory_layout), 3)
     self.assertEqual(device_config.memory_layout[0].base_addr, 0x0)
@@ -50,8 +49,7 @@ class TestInference(unittest.TestCase):
   def test_zephyr_10064_elf(self):
     client = HavocClient(HOST_URL)
     file_metadata = client.upload_file("ci-resources/test-binaries/zephyr-10064.elf")
-    inferred_config = client.infer_config(file_hash=file_metadata.hash)
-    device_config = inferred_config.device_config
+    device_config, _ = client.infer_config(file_hash=file_metadata.hash)
 
     self.assertEqual(len(device_config.memory_layout), 3)
 
@@ -81,8 +79,7 @@ class TestInference(unittest.TestCase):
   def test_px4_fmu_v5_elf(self): # distance between merged segments > 0x0.
     client = HavocClient(HOST_URL)
     file_metadata = client.upload_file("ci-resources/test-binaries/px4_fmu-v5_default.elf")
-    inferred_config = client.infer_config(file_hash=file_metadata.hash)
-    device_config = inferred_config.device_config
+    device_config, _ = client.infer_config(file_hash=file_metadata.hash)
 
     self.assertEqual(len(device_config.memory_layout), 4) # stm32 has uid registers at 0x1ffff000
 
@@ -112,8 +109,7 @@ class TestInference(unittest.TestCase):
   def test_floormat_elf(self):
     client = HavocClient(HOST_URL)
     file_metadata = client.upload_file("ci-resources/test-binaries/floormat.elf")
-    inferred_config = client.infer_config(file_hash=file_metadata.hash)
-    device_config = inferred_config.device_config
+    device_config, _ = client.infer_config(file_hash=file_metadata.hash)
 
     self.assertEqual(len(device_config.memory_layout), 5) # stm32 has uid registers at 0x1ffff000
 
@@ -157,8 +153,7 @@ class TestInference(unittest.TestCase):
   def test_portenta_stm32h747_elf(self):
     client = HavocClient(HOST_URL)
     file_metadata = client.upload_file("ci-resources/test-binaries/portenta_STM32H747AII6_CM7.elf")
-    inferred_config = client.infer_config(file_hash=file_metadata.hash)
-    device_config = inferred_config.device_config
+    device_config, _ = client.infer_config(file_hash=file_metadata.hash)
 
     self.assertEqual(len(device_config.memory_layout), 6)
 
@@ -221,9 +216,8 @@ class TestInference(unittest.TestCase):
   def test_p2im_console_elf(self):
     client = HavocClient(HOST_URL)
     file_metadata = client.upload_file("ci-resources/test-binaries/p2im.console.elf")
-    inferred_config = client.infer_config(file_hash=file_metadata.hash)
-    device_config = inferred_config.device_config
-    
+    device_config, _ = client.infer_config(file_hash=file_metadata.hash)
+
     self.assertEqual(len(device_config.memory_layout), 3)
     self.assertEqual(device_config.memory_layout[0].base_addr, 0x0)
     self.assertEqual(device_config.memory_layout[0].memory_type, MemoryType.ROM)
@@ -262,11 +256,10 @@ class TestInference(unittest.TestCase):
   def test_knickerbocker_elf(self):
     client = HavocClient(HOST_URL)
     file_metadata = client.upload_file("ci-resources/test-binaries/knickerbocker.elf")
-    inferred_config = client.infer_config(file_hash=file_metadata.hash)
-    device_config = inferred_config.device_config
+    device_config, _ = client.infer_config(file_hash=file_metadata.hash)
 
     self.assertEqual(len(device_config.memory_layout), 4)
-    
+
     self.assertEqual(device_config.memory_layout[0].base_addr, 0x800000)
     self.assertEqual(device_config.memory_layout[0].memory_type, MemoryType.ROM)
     self.assertEqual(device_config.memory_layout[0].size, 0x5fc0)
@@ -290,7 +283,7 @@ class TestInference(unittest.TestCase):
     self.assertEqual(device_config.memory_layout[1].file.segments[1].file_offset, 0x10414)
     self.assertEqual(device_config.memory_layout[1].file.segments[1].memory_offset, 0x214)
     self.assertEqual(device_config.memory_layout[1].file.segments[1].size, 0x32c75)
-    
+
     self.assertEqual(device_config.memory_layout[2].base_addr, 0x20000000)
     self.assertEqual(device_config.memory_layout[2].memory_type, MemoryType.RAM)
     self.assertEqual(device_config.memory_layout[2].size, 0x100000)
@@ -307,8 +300,7 @@ class TestInference(unittest.TestCase):
   def test_adi_periph_max32655_elf(self):
     client = HavocClient(HOST_URL)
     file_metadata = client.upload_file("ci-resources/test-binaries/ADI_periph_max32655.elf")
-    inferred_config = client.infer_config(file_hash=file_metadata.hash)
-    device_config = inferred_config.device_config
+    device_config, _ = client.infer_config(file_hash=file_metadata.hash)
 
     self.assertEqual(len(device_config.memory_layout), 4)
 
@@ -347,8 +339,7 @@ class TestInference(unittest.TestCase):
   def test_arducopter_elf(self):
     client = HavocClient(HOST_URL)
     file_metadata = client.upload_file("ci-resources/test-binaries/arducopter.elf")
-    inferred_config = client.infer_config(file_hash=file_metadata.hash)
-    device_config = inferred_config.device_config
+    device_config, _ = client.infer_config(file_hash=file_metadata.hash)
 
     for mem in device_config.memory_layout:
       print(hex(mem.base_addr), hex(mem.size), mem.memory_type)

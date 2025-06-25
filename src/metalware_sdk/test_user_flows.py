@@ -25,8 +25,7 @@ class TestHavoc(TestCase):
     client = HavocClient(HOST_URL)
     file_metadata = client.upload_file("ci-resources/test-binaries/alias-test.elf")
 
-    inferred_config = client.infer_config(file_hash=file_metadata.hash)
-    device_config = inferred_config.device_config
+    device_config, image_config = client.infer_config(file_hash=file_metadata.hash)
 
     device_config.memory_layout.append(Memory(base_addr=0x20000000, size=0x100000, memory_type=MemoryType.RAM, aliased_to=0x24000000))
     device_config.memory_layout.append(Memory(base_addr=0x24000000, size=0x100000, memory_type=MemoryType.RAM))
@@ -34,7 +33,6 @@ class TestHavoc(TestCase):
     project_config = ProjectConfig(device_config)
     client.create_project("alias-test.tmp", project_config, overwrite=True)
 
-    image_config = inferred_config.image_config
     client.create_project_image(project_name="alias-test.tmp", image_name="default", image_config=image_config)
 
     client.start_run(project_name="alias-test.tmp", config=RunConfig(image_name="default", dry_run=True))
@@ -43,13 +41,11 @@ class TestHavoc(TestCase):
     client = HavocClient(HOST_URL)
     file_metadata = client.upload_file("ci-resources/test-binaries/zephyr-10064.bin")
 
-    inferred_config = client.infer_config(file_hash=file_metadata.hash)
-    device_config = inferred_config.device_config
+    device_config, image_config = client.infer_config(file_hash=file_metadata.hash)
 
     project_config = ProjectConfig(device_config)
     client.create_project("zephyr-10064.tmp", project_config, overwrite=True)
 
-    image_config = inferred_config.image_config
     client.create_project_image(project_name="zephyr-10064.tmp", image_name="default", image_config=image_config)
 
     client.start_run(project_name="zephyr-10064.tmp", config=RunConfig(image_name="default", dry_run=True))
@@ -82,8 +78,7 @@ class TestHavoc(TestCase):
     client = HavocClient(HOST_URL)
     file_metadata = client.upload_file("ci-resources/test-binaries/zephyr-10064.elf")
 
-    inferred_config = client.infer_config(file_hash=file_metadata.hash)
-    device_config = inferred_config.device_config
+    device_config, image_config = client.infer_config(file_hash=file_metadata.hash)
 
     project_config = ProjectConfig(device_config)
     client.create_project("zephyr-10064.tmp", project_config, overwrite=True)
@@ -290,7 +285,7 @@ class TestHavoc(TestCase):
     self.assertEqual(symbols[1].name, "symbol2")
     self.assertEqual(symbols[1].address, 0x2004)
     self.assertEqual(symbols[1].size, 0x1)
-  
+
   def test_get_image_symbols_new_image(self):
     client = HavocClient(HOST_URL)
 
@@ -329,7 +324,7 @@ class TestHavoc(TestCase):
 
     # Create project
     client.create_project("dummy.tmp", ProjectConfig(DeviceConfig(memory_layout=[Memory(base_addr=0x400000, size=0x100000, memory_type=MemoryType.ROM)])), overwrite=True)
-    
+
     # Get project images again
     images = client.get_project_images(project_name="dummy.tmp")
     self.assertEqual(len(images), 0)
@@ -385,21 +380,20 @@ class TestHavoc(TestCase):
   def infer_and_run(self, file_path: str, manual_entry_address: int = None, manual_memories: List[Memory] = [], dry_run: bool = True):
     client = HavocClient(HOST_URL)
     file_metadata = client.upload_file(file_path)
-    inferred_config = client.infer_config(file_hash=file_metadata.hash)
+    device_config, image_config = client.infer_config(file_hash=file_metadata.hash)
     # Remove all memories that share base addres with manual memories
-    inferred_config.device_config.memory_layout = [memory for memory in inferred_config.device_config.memory_layout if memory.base_addr not in [memory.base_addr for memory in manual_memories]]
-    for memory in manual_memories: inferred_config.device_config.memory_layout.append(memory)
-    project_config = ProjectConfig(inferred_config.device_config)
+    device_config.memory_layout = [memory for memory in device_config.memory_layout if memory.base_addr not in [memory.base_addr for memory in manual_memories]]
+    for memory in manual_memories: device_config.memory_layout.append(memory)
+    project_config = ProjectConfig(device_config)
     project_name = file_path.split("/")[-1].split(".")[0] + (".tmp" if dry_run else "")
     client.create_project(project_name, project_config, overwrite=dry_run)
-    image_config = inferred_config.image_config
     if manual_entry_address is not None: image_config.entry_address = manual_entry_address
     client.create_project_image(project_name=project_name, image_name="default", image_config=image_config)
     client.start_run(project_name=project_name, config=RunConfig(image_name="default", dry_run=dry_run))
 
   def test_portenta_elf_infer(self):
     self.infer_and_run("ci-resources/test-binaries/portenta_STM32H747AII6_CM7.elf")
-  
+
   def test_knickerbocker_elf_infer(self):
     self.infer_and_run("ci-resources/test-binaries/knickerbocker.elf")
 
