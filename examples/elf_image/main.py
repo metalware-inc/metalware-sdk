@@ -22,9 +22,7 @@ if client.project_exists(PROJECT_NAME):
 file_metadata = client.upload_file("simple-loop.elf")
 
 # Havoc will infer the device config (memory map) and image config from the ELF.
-inferred_config = client.infer_config(file_hash=file_metadata.hash)
-device_config = inferred_config.device_config
-image_config = inferred_config.image_config
+device_config, image_config = client.infer_config(file_hash=file_metadata.hash)
 
 # 1.1. Check device configuration and modify if necessary.
 print(f"Device Config: {device_config}")
@@ -46,7 +44,6 @@ client.create_project_image(
   image_name=IMAGE_NAME,
   image_config=image_config
 )
-
 
 # 4. Start a dry run to verify configuration.
 run_id = client.start_run(

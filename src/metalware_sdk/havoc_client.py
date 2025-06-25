@@ -48,7 +48,7 @@ class HavocClient:
     else:
       raise RuntimeError(f"Upload failed: {result.get('Err', 'Unknown error')}")
 
-  def infer_config(self, file_hash: str) -> InferredConfig:
+  def infer_config(self, file_hash: str) -> [DeviceConfig, ImageConfig]:
     resp = self._make_request(
       'POST',
       f'/infer-memory-layout-and-entry',
@@ -57,9 +57,9 @@ class HavocClient:
     
     result = resp.json()
     if isinstance(result, dict) and 'Ok' in result:
-      return InferredConfig.from_dict(result['Ok'])
-    else:
-      raise RuntimeError(f"Memory config inference failed: {result.get('Err', 'Unknown error')}")
+      ic = InferredConfig.from_dict(result['Ok'])
+      return ic.device_config, ic.image_config
+    else: raise RuntimeError(f"Memory config inference failed: {result.get('Err', 'Unknown error')}")
 
   def create_project_image(self, project_name: str, image_name: str, image_config: ImageConfig) -> str:
     resp = self._make_request(
