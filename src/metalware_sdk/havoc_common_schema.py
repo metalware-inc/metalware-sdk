@@ -1,7 +1,7 @@
 from enum import Enum
-import io, struct
 from typing import List, Optional, Any, TypeVar, Callable, Type, cast, Dict
-
+import io, struct
+import json
 
 T = TypeVar("T")
 EnumT = TypeVar("EnumT", bound=Enum)
@@ -305,7 +305,7 @@ class DeviceConfig:
         result["memory_layout"] = from_list(lambda x: to_class(Memory, x), self.memory_layout)
         return result
 
-    def pretty_string(self) -> str:
+    def __repr__(self) -> str:
         return json.dumps(self.to_dict(), indent=2)
 
 class FileMetadata:
@@ -508,6 +508,9 @@ class ImageConfig:
         result["patches"] = from_list(lambda x: to_class(Patch, x), self.patches)
         result["symbols"] = from_list(lambda x: to_class(Symbol, x), self.symbols)
         return result
+
+    def __repr__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2)
 
 
 class InferredConfig:
