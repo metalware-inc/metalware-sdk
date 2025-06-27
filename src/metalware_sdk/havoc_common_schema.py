@@ -356,6 +356,28 @@ class FormatMemoryLayoutRequest:
         return result
 
 
+class Handler:
+    action: str
+    address: int
+
+    def __init__(self, action: str, address: int) -> None:
+        self.action = action
+        self.address = address
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'Handler':
+        assert isinstance(obj, dict)
+        action = from_str(obj.get("action"))
+        address = from_int(obj.get("address"))
+        return Handler(action, address)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        result["action"] = from_str(self.action)
+        result["address"] = from_int(self.address)
+        return result
+
+
 class ImageArch(Enum):
     CORTEX_M = "CortexM"
 
@@ -478,13 +500,15 @@ class Symbol:
 
 class ImageConfig:
     entry_address: int
+    handlers: Optional[List[Handler]]
     image_arch: ImageArch
     image_format: ImageFormat
     patches: List[Patch]
     symbols: List[Symbol]
 
-    def __init__(self, entry_address: int, image_arch: ImageArch, image_format: ImageFormat, patches: List[Patch] = [], symbols: List[Symbol] = []) -> None:
+    def __init__(self, entry_address: int, image_arch: ImageArch, image_format: ImageFormat, patches: List[Patch] = [], symbols: List[Symbol] = [], handlers: Optional[List[Handler]] = []) -> None:
         self.entry_address = entry_address
+        self.handlers = handlers
         self.image_arch = image_arch
         self.image_format = image_format
         self.patches = patches
@@ -494,15 +518,18 @@ class ImageConfig:
     def from_dict(obj: Any) -> 'ImageConfig':
         assert isinstance(obj, dict)
         entry_address = from_int(obj.get("entry_address"))
+        handlers = from_union([from_none, lambda x: from_list(Handler.from_dict, x)], obj.get("handlers"))
         image_arch = ImageArch(obj.get("image_arch"))
         image_format = ImageFormat.from_dict(obj.get("image_format"))
         patches = from_list(Patch.from_dict, obj.get("patches"))
         symbols = from_list(Symbol.from_dict, obj.get("symbols"))
-        return ImageConfig(entry_address, image_arch, image_format, patches, symbols)
+        return ImageConfig(entry_address, image_arch, image_format, patches, symbols, handlers)
 
     def to_dict(self) -> dict:
         result: dict = {}
         result["entry_address"] = from_int(self.entry_address)
+        if self.handlers is not None:
+            result["handlers"] = from_union([from_none, lambda x: from_list(lambda x: to_class(Handler, x), x)], self.handlers)
         result["image_arch"] = to_enum(ImageArch, self.image_arch)
         result["image_format"] = to_class(ImageFormat, self.image_format)
         result["patches"] = from_list(lambda x: to_class(Patch, x), self.patches)

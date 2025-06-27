@@ -36,6 +36,8 @@ client.create_project(
 # 3. Attach image to project based on image config.
 print(f"Creating image {IMAGE_NAME}...")
 
+print(f"Image Config: {image_config}")
+
 # Option: Add patches.
 # image_config.patches.append(Patch(address=0x20000000, patch_type=PatchType.RETURN))
 
