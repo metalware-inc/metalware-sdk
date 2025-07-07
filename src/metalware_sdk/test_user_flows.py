@@ -83,7 +83,6 @@ class TestHavoc(TestCase):
     project_config = ProjectConfig(device_config)
     client.create_project("zephyr-10064.tmp", project_config, overwrite=True)
 
-    image_config = ImageConfig(entry_address=0x400000, image_arch=ImageArch.CORTEX_M, image_format=ImageFormat(elf=file_metadata.hash))
     client.create_project_image(project_name="zephyr-10064.tmp", image_name="default", image_config=image_config)
 
     client.start_run(project_name="zephyr-10064.tmp", config=RunConfig(image_name="default", dry_run=True))
