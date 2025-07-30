@@ -52,6 +52,7 @@ def to_class(c: Type[T], x: Any) -> dict:
 
 
 class Cwe(Enum):
+    CRASH_ON_ADDRESS = "CrashOnAddress"
     IMPROPER_CHECK_FOR_UNUSUAL_CONDITIONS = "ImproperCheckForUnusualConditions"
     NULL_POINTER_DEREFERENCE = "NullPointerDereference"
     OUT_OF_BOUNDS_WRITE = "OutOfBoundsWrite"
@@ -238,6 +239,7 @@ class MemoryFile:
 
 
 class MemoryType(Enum):
+    IO_OVERLAY = "io_overlay"
     MMIO = "mmio"
     RAM = "ram"
     ROM = "rom"
@@ -287,6 +289,7 @@ class Memory:
         result["memory_type"] = to_enum(MemoryType, self.memory_type)
         result["size"] = from_int(self.size)
         return result
+
 
 class DeviceConfig:
     memory_layout: List[Memory]
@@ -353,6 +356,28 @@ class FormatMemoryLayoutRequest:
         result: dict = {}
         result["image_hash"] = from_str(self.image_hash)
         result["memory_layout"] = from_list(lambda x: to_class(Memory, x), self.memory_layout)
+        return result
+
+
+class DMABuffer:
+    addr: int
+    size: int
+
+    def __init__(self, addr: int, size: int) -> None:
+        self.addr = addr
+        self.size = size
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'DMABuffer':
+        assert isinstance(obj, dict)
+        addr = from_int(obj.get("addr"))
+        size = from_int(obj.get("size"))
+        return DMABuffer(addr, size)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        result["addr"] = from_int(self.addr)
+        result["size"] = from_int(self.size)
         return result
 
 
@@ -445,6 +470,7 @@ class ImageFormat:
             result["Raw"] = from_union([lambda x: to_class(RawImage, x), from_none], self.raw)
         return result
 
+
 class PatchType(Enum):
     NOP = "Nop"
     RETURN = "Return"
@@ -473,6 +499,7 @@ class Patch:
         result["patch_type"] = to_enum(PatchType, self.patch_type)
         return result
 
+
 class Symbol:
     address: int
     name: str
@@ -498,7 +525,9 @@ class Symbol:
         result["size"] = from_int(self.size)
         return result
 
+
 class ImageConfig:
+    dma_buffers: Optional[List[DMABuffer]]
     entry_address: int
     handlers: Optional[List[Handler]]
     image_arch: ImageArch
@@ -612,12 +641,16 @@ class RunConfig:
     fuzzer_config: Optional[FuzzerConfig]
     image_name: str
     instance_count: int
+    image_config_hash: Optional[str]
+    project_config_hash: Optional[str]
 
     def __init__(self, image_name: str, instance_count: int = 1, dry_run: bool = False, fuzzer_config: Optional[FuzzerConfig] = None) -> None:
         self.dry_run = dry_run
         self.fuzzer_config = fuzzer_config
         self.image_name = image_name
         self.instance_count = instance_count
+        self.image_config_hash = None
+        self.project_config_hash = None
 
     @staticmethod
     def from_dict(obj: Any) -> 'RunConfig':
@@ -657,6 +690,32 @@ class Crash:
         result: dict = {}
         result["id"] = from_str(self.id)
         result["result"] = to_class(AnalysisResult, self.result)
+        return result
+
+
+class DetectedDMABuffer:
+    addr: int
+    max_size: int
+    min_size: int
+
+    def __init__(self, addr: int, max_size: int, min_size: int) -> None:
+        self.addr = addr
+        self.max_size = max_size
+        self.min_size = min_size
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'DetectedDMABuffer':
+        assert isinstance(obj, dict)
+        addr = from_int(obj.get("addr"))
+        max_size = from_int(obj.get("max_size"))
+        min_size = from_int(obj.get("min_size"))
+        return DetectedDMABuffer(addr, max_size, min_size)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        result["addr"] = from_int(self.addr)
+        result["max_size"] = from_int(self.max_size)
+        result["min_size"] = from_int(self.min_size)
         return result
 
 
@@ -738,15 +797,17 @@ class RunStats:
     block_frequency_map: List[List[int]]
     coverage: List[List[int]]
     crashes: List[Crash]
+    dma_buffers: Optional[List[DetectedDMABuffer]]
     executions: int
     hangs: List[Hang]
     new_blocks: List[Block]
     throughput: int
 
-    def __init__(self, block_frequency_map: List[List[int]], coverage: List[List[int]], crashes: List[Crash], executions: int, hangs: List[Hang], new_blocks: List[Block], throughput: int) -> None:
+    def __init__(self, block_frequency_map: List[List[int]], coverage: List[List[int]], crashes: List[Crash], dma_buffers: Optional[List[DetectedDMABuffer]], executions: int, hangs: List[Hang], new_blocks: List[Block], throughput: int) -> None:
         self.block_frequency_map = block_frequency_map
         self.coverage = coverage
         self.crashes = crashes
+        self.dma_buffers = dma_buffers
         self.executions = executions
         self.hangs = hangs
         self.new_blocks = new_blocks
@@ -758,17 +819,20 @@ class RunStats:
         block_frequency_map = from_list(lambda x: from_list(from_int, x), obj.get("block_frequency_map"))
         coverage = from_list(lambda x: from_list(from_int, x), obj.get("coverage"))
         crashes = from_list(Crash.from_dict, obj.get("crashes"))
+        dma_buffers = from_union([from_none, lambda x: from_list(DetectedDMABuffer.from_dict, x)], obj.get("dma_buffers"))
         executions = from_int(obj.get("executions"))
         hangs = from_list(Hang.from_dict, obj.get("hangs"))
         new_blocks = from_list(Block.from_dict, obj.get("new_blocks"))
         throughput = from_int(obj.get("throughput"))
-        return RunStats(block_frequency_map, coverage, crashes, executions, hangs, new_blocks, throughput)
+        return RunStats(block_frequency_map, coverage, crashes, dma_buffers, executions, hangs, new_blocks, throughput)
 
     def to_dict(self) -> dict:
         result: dict = {}
         result["block_frequency_map"] = from_list(lambda x: from_list(from_int, x), self.block_frequency_map)
         result["coverage"] = from_list(lambda x: from_list(from_int, x), self.coverage)
         result["crashes"] = from_list(lambda x: to_class(Crash, x), self.crashes)
+        if self.dma_buffers is not None:
+            result["dma_buffers"] = from_union([from_none, lambda x: from_list(lambda x: to_class(DetectedDMABuffer, x), x)], self.dma_buffers)
         result["executions"] = from_int(self.executions)
         result["hangs"] = from_list(lambda x: to_class(Hang, x), self.hangs)
         result["new_blocks"] = from_list(lambda x: to_class(Block, x), self.new_blocks)
