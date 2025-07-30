@@ -1,3 +1,0 @@
-[submodule "ci-resources"]
-	path = ci-resources
-	url = git@github.com:metalware-inc/ci-resources.git
