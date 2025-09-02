@@ -693,29 +693,200 @@ class Crash:
         return result
 
 
-class DetectedDMABuffer:
-    addr: int
-    max_size: int
-    min_size: int
+class SizeRange:
+    max: int
+    min: int
 
-    def __init__(self, addr: int, max_size: int, min_size: int) -> None:
-        self.addr = addr
-        self.max_size = max_size
-        self.min_size = min_size
+    def __init__(self, max: int, min: int) -> None:
+        self.max = max
+        self.min = min
 
     @staticmethod
-    def from_dict(obj: Any) -> 'DetectedDMABuffer':
+    def from_dict(obj: Any) -> 'SizeRange':
+        assert isinstance(obj, dict)
+        max = from_int(obj.get("max"))
+        min = from_int(obj.get("min"))
+        return SizeRange(max, min)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        result["max"] = from_int(self.max)
+        result["min"] = from_int(self.min)
+        return result
+
+
+class DMADescriptorFieldEntry:
+    offset: int
+    is_buf_end_ptr: Optional[bool]
+    known_values: Optional[List[Union[int, str]]]
+    to: Optional['DMADescriptorField']
+    type: str
+    fields: Optional[List['DMADescriptorFieldEntry']]
+    typedef: Optional[str]
+    known_sizes: Optional[Dict[str, SizeRange]]
+    mask: Optional[int]
+    size: Optional[int]
+
+    def __init__(self, offset: int, is_buf_end_ptr: Optional[bool], known_values: Optional[List[Union[int, str]]], to: Optional['DMADescriptorField'], type: str, fields: Optional[List['DMADescriptorFieldEntry']], typedef: Optional[str], known_sizes: Optional[Dict[str, SizeRange]], mask: Optional[int], size: Optional[int]) -> None:
+        self.offset = offset
+        self.is_buf_end_ptr = is_buf_end_ptr
+        self.known_values = known_values
+        self.to = to
+        self.type = type
+        self.fields = fields
+        self.typedef = typedef
+        self.known_sizes = known_sizes
+        self.mask = mask
+        self.size = size
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'DMADescriptorFieldEntry':
+        assert isinstance(obj, dict)
+        offset = from_int(obj.get("offset"))
+        is_buf_end_ptr = from_union([from_none, from_bool], obj.get("is_buf_end_ptr"))
+        known_values = from_union([lambda x: from_list(lambda x: from_union([from_int, from_str], x), x), from_none], obj.get("known_values"))
+        to = from_union([DMADescriptorField.from_dict, from_none], obj.get("to"))
+        type = from_str(obj.get("type"))
+        fields = from_union([lambda x: from_list(DMADescriptorFieldEntry.from_dict, x), from_none], obj.get("fields"))
+        typedef = from_union([from_none, from_str], obj.get("typedef"))
+        known_sizes = from_union([lambda x: from_dict(SizeRange.from_dict, x), from_none], obj.get("known_sizes"))
+        mask = from_union([from_int, from_none], obj.get("mask"))
+        size = from_union([from_int, from_none], obj.get("size"))
+        return DMADescriptorFieldEntry(offset, is_buf_end_ptr, known_values, to, type, fields, typedef, known_sizes, mask, size)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        result["offset"] = from_int(self.offset)
+        if self.is_buf_end_ptr is not None:
+            result["is_buf_end_ptr"] = from_union([from_none, from_bool], self.is_buf_end_ptr)
+        if self.known_values is not None:
+            result["known_values"] = from_union([lambda x: from_list(lambda x: from_union([from_int, from_str], x), x), from_none], self.known_values)
+        if self.to is not None:
+            result["to"] = from_union([lambda x: to_class(DMADescriptorField, x), from_none], self.to)
+        result["type"] = from_str(self.type)
+        if self.fields is not None:
+            result["fields"] = from_union([lambda x: from_list(lambda x: to_class(DMADescriptorFieldEntry, x), x), from_none], self.fields)
+        if self.typedef is not None:
+            result["typedef"] = from_union([from_none, from_str], self.typedef)
+        if self.known_sizes is not None:
+            result["known_sizes"] = from_union([lambda x: from_dict(lambda x: to_class(SizeRange, x), x), from_none], self.known_sizes)
+        if self.mask is not None:
+            result["mask"] = from_union([from_int, from_none], self.mask)
+        if self.size is not None:
+            result["size"] = from_union([from_int, from_none], self.size)
+        return result
+
+
+class DMADescriptorField:
+    is_buf_end_ptr: Optional[bool]
+    known_values: Optional[List[Union[int, str]]]
+    to: Optional['DMADescriptorField']
+    type: str
+    fields: Optional[List[DMADescriptorFieldEntry]]
+    typedef: Optional[str]
+    known_sizes: Optional[Dict[str, SizeRange]]
+    mask: Optional[int]
+    size: Optional[int]
+
+    def __init__(self, is_buf_end_ptr: Optional[bool], known_values: Optional[List[Union[int, str]]], to: Optional['DMADescriptorField'], type: str, fields: Optional[List[DMADescriptorFieldEntry]], typedef: Optional[str], known_sizes: Optional[Dict[str, SizeRange]], mask: Optional[int], size: Optional[int]) -> None:
+        self.is_buf_end_ptr = is_buf_end_ptr
+        self.known_values = known_values
+        self.to = to
+        self.type = type
+        self.fields = fields
+        self.typedef = typedef
+        self.known_sizes = known_sizes
+        self.mask = mask
+        self.size = size
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'DMADescriptorField':
+        assert isinstance(obj, dict)
+        is_buf_end_ptr = from_union([from_none, from_bool], obj.get("is_buf_end_ptr"))
+        known_values = from_union([lambda x: from_list(lambda x: from_union([from_int, from_str], x), x), from_none], obj.get("known_values"))
+        to = from_union([DMADescriptorField.from_dict, from_none], obj.get("to"))
+        type = from_str(obj.get("type"))
+        fields = from_union([lambda x: from_list(DMADescriptorFieldEntry.from_dict, x), from_none], obj.get("fields"))
+        typedef = from_union([from_none, from_str], obj.get("typedef"))
+        known_sizes = from_union([lambda x: from_dict(SizeRange.from_dict, x), from_none], obj.get("known_sizes"))
+        mask = from_union([from_int, from_none], obj.get("mask"))
+        size = from_union([from_int, from_none], obj.get("size"))
+        return DMADescriptorField(is_buf_end_ptr, known_values, to, type, fields, typedef, known_sizes, mask, size)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        if self.is_buf_end_ptr is not None:
+            result["is_buf_end_ptr"] = from_union([from_none, from_bool], self.is_buf_end_ptr)
+        if self.known_values is not None:
+            result["known_values"] = from_union([lambda x: from_list(lambda x: from_union([from_int, from_str], x), x), from_none], self.known_values)
+        if self.to is not None:
+            result["to"] = from_union([lambda x: to_class(DMADescriptorField, x), from_none], self.to)
+        result["type"] = from_str(self.type)
+        if self.fields is not None:
+            result["fields"] = from_union([lambda x: from_list(lambda x: to_class(DMADescriptorFieldEntry, x), x), from_none], self.fields)
+        if self.typedef is not None:
+            result["typedef"] = from_union([from_none, from_str], self.typedef)
+        if self.known_sizes is not None:
+            result["known_sizes"] = from_union([lambda x: from_dict(lambda x: to_class(SizeRange, x), x), from_none], self.known_sizes)
+        if self.mask is not None:
+            result["mask"] = from_union([from_int, from_none], self.mask)
+        if self.size is not None:
+            result["size"] = from_union([from_int, from_none], self.size)
+        return result
+
+
+class DMADescriptorHead:
+    addr: int
+    is_buf_end_ptr: Optional[bool]
+    known_values: Optional[List[Union[int, str]]]
+    to: DMADescriptorField
+
+    def __init__(self, addr: int, is_buf_end_ptr: Optional[bool], known_values: Optional[List[Union[int, str]]], to: DMADescriptorField) -> None:
+        self.addr = addr
+        self.is_buf_end_ptr = is_buf_end_ptr
+        self.known_values = known_values
+        self.to = to
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'DMADescriptorHead':
         assert isinstance(obj, dict)
         addr = from_int(obj.get("addr"))
-        max_size = from_int(obj.get("max_size"))
-        min_size = from_int(obj.get("min_size"))
-        return DetectedDMABuffer(addr, max_size, min_size)
+        is_buf_end_ptr = from_union([from_none, from_bool], obj.get("is_buf_end_ptr"))
+        known_values = from_union([lambda x: from_list(lambda x: from_union([from_int, from_str], x), x), from_none], obj.get("known_values"))
+        to = DMADescriptorField.from_dict(obj.get("to"))
+        return DMADescriptorHead(addr, is_buf_end_ptr, known_values, to)
 
     def to_dict(self) -> dict:
         result: dict = {}
         result["addr"] = from_int(self.addr)
-        result["max_size"] = from_int(self.max_size)
-        result["min_size"] = from_int(self.min_size)
+        if self.is_buf_end_ptr is not None:
+            result["is_buf_end_ptr"] = from_union([from_none, from_bool], self.is_buf_end_ptr)
+        if self.known_values is not None:
+            result["known_values"] = from_union([lambda x: from_list(lambda x: from_union([from_int, from_str], x), x), from_none], self.known_values)
+        result["to"] = to_class(DMADescriptorField, self.to)
+        return result
+
+
+class DMAConfig:
+    buffers: Optional[Dict[str, SizeRange]]
+    descriptors: List[DMADescriptorHead]
+
+    def __init__(self, buffers: Optional[Dict[str, SizeRange]], descriptors: List[DMADescriptorHead]) -> None:
+        self.buffers = buffers
+        self.descriptors = descriptors
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'DMAConfig':
+        assert isinstance(obj, dict)
+        buffers = from_union([lambda x: from_dict(SizeRange.from_dict, x), from_none], obj.get("buffers"))
+        descriptors = from_list(DMADescriptorHead.from_dict, obj.get("descriptors"))
+        return DMAConfig(buffers, descriptors)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        if self.buffers is not None:
+            result["buffers"] = from_union([lambda x: from_dict(lambda x: to_class(SizeRange, x), x), from_none], self.buffers)
+        result["descriptors"] = from_list(lambda x: to_class(DMADescriptorHead, x), self.descriptors)
         return result
 
 
@@ -797,17 +968,17 @@ class RunStats:
     block_frequency_map: List[List[int]]
     coverage: List[List[int]]
     crashes: List[Crash]
-    dma_buffers: Optional[List[DetectedDMABuffer]]
+    dma_config: DMAConfig
     executions: int
     hangs: List[Hang]
     new_blocks: List[Block]
     throughput: int
 
-    def __init__(self, block_frequency_map: List[List[int]], coverage: List[List[int]], crashes: List[Crash], dma_buffers: Optional[List[DetectedDMABuffer]], executions: int, hangs: List[Hang], new_blocks: List[Block], throughput: int) -> None:
+    def __init__(self, block_frequency_map: List[List[int]], coverage: List[List[int]], crashes: List[Crash], dma_config: DMAConfig, executions: int, hangs: List[Hang], new_blocks: List[Block], throughput: int) -> None:
         self.block_frequency_map = block_frequency_map
         self.coverage = coverage
         self.crashes = crashes
-        self.dma_buffers = dma_buffers
+        self.dma_config = dma_config
         self.executions = executions
         self.hangs = hangs
         self.new_blocks = new_blocks
@@ -819,20 +990,19 @@ class RunStats:
         block_frequency_map = from_list(lambda x: from_list(from_int, x), obj.get("block_frequency_map"))
         coverage = from_list(lambda x: from_list(from_int, x), obj.get("coverage"))
         crashes = from_list(Crash.from_dict, obj.get("crashes"))
-        dma_buffers = from_union([from_none, lambda x: from_list(DetectedDMABuffer.from_dict, x)], obj.get("dma_buffers"))
+        dma_config = DMAConfig.from_dict(obj.get("dma_config"))
         executions = from_int(obj.get("executions"))
         hangs = from_list(Hang.from_dict, obj.get("hangs"))
         new_blocks = from_list(Block.from_dict, obj.get("new_blocks"))
         throughput = from_int(obj.get("throughput"))
-        return RunStats(block_frequency_map, coverage, crashes, dma_buffers, executions, hangs, new_blocks, throughput)
+        return RunStats(block_frequency_map, coverage, crashes, dma_config, executions, hangs, new_blocks, throughput)
 
     def to_dict(self) -> dict:
         result: dict = {}
         result["block_frequency_map"] = from_list(lambda x: from_list(from_int, x), self.block_frequency_map)
         result["coverage"] = from_list(lambda x: from_list(from_int, x), self.coverage)
         result["crashes"] = from_list(lambda x: to_class(Crash, x), self.crashes)
-        if self.dma_buffers is not None:
-            result["dma_buffers"] = from_union([from_none, lambda x: from_list(lambda x: to_class(DetectedDMABuffer, x), x)], self.dma_buffers)
+        result["dma_config"] = to_class(DMAConfig, self.dma_config)
         result["executions"] = from_int(self.executions)
         result["hangs"] = from_list(lambda x: to_class(Hang, x), self.hangs)
         result["new_blocks"] = from_list(lambda x: to_class(Block, x), self.new_blocks)
