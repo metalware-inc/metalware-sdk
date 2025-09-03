@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional, Any, TypeVar, Callable, Type, cast, Dict
+from typing import List, Optional, Any, Union, Dict, TypeVar, Callable, Type, cast
 import io, struct
 import json
 
@@ -49,6 +49,11 @@ def to_enum(c: Type[EnumT], x: Any) -> EnumT:
 def to_class(c: Type[T], x: Any) -> dict:
     assert isinstance(x, c)
     return cast(Any, x).to_dict()
+
+
+def from_dict(f: Callable[[Any], T], x: Any) -> Dict[str, T]:
+    assert isinstance(x, dict)
+    return { k: f(v) for (k, v) in x.items() }
 
 
 class Cwe(Enum):
@@ -850,7 +855,7 @@ class DMADescriptorHead:
     @staticmethod
     def from_dict(obj: Any) -> 'DMADescriptorHead':
         assert isinstance(obj, dict)
-        addr = from_int(obj.get("addr"))
+        addr = int(obj.get("addr").replace("+", ""), 16)
         is_buf_end_ptr = from_union([from_none, from_bool], obj.get("is_buf_end_ptr"))
         known_values = from_union([lambda x: from_list(lambda x: from_union([from_int, from_str], x), x), from_none], obj.get("known_values"))
         to = DMADescriptorField.from_dict(obj.get("to"))
@@ -878,7 +883,11 @@ class DMAConfig:
     @staticmethod
     def from_dict(obj: Any) -> 'DMAConfig':
         assert isinstance(obj, dict)
-        buffers = from_union([lambda x: from_dict(SizeRange.from_dict, x), from_none], obj.get("buffers"))
+        buffers = {}
+        for addr, srange in obj.get("buffers", {}).items():
+          min = srange['min'].removeprefix("+")
+          max = srange['max'].removeprefix("+")
+          buffers[addr.removeprefix("+")] = SizeRange(int(min, 16), int(max, 16))
         descriptors = from_list(DMADescriptorHead.from_dict, obj.get("descriptors"))
         return DMAConfig(buffers, descriptors)
 
