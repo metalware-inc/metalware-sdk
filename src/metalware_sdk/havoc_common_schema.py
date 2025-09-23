@@ -570,7 +570,8 @@ class ImageConfig:
         result["image_format"] = to_class(ImageFormat, self.image_format)
         result["patches"] = from_list(lambda x: to_class(Patch, x), self.patches)
         result["symbols"] = from_list(lambda x: to_class(Symbol, x), self.symbols)
-        result["dma_buffers"] = from_list(lambda x: to_class(DMABuffer, x), self.dma_buffers)
+        if self.dma_buffers is not None:
+          result["dma_buffers"] = from_union([from_none, lambda x: from_list(lambda x: to_class(DMABuffer, x), x)], self.dma_buffers)
         return result
 
     def __repr__(self) -> str:
