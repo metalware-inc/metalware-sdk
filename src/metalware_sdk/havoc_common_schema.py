@@ -540,13 +540,14 @@ class ImageConfig:
     patches: List[Patch]
     symbols: List[Symbol]
 
-    def __init__(self, entry_address: int, image_arch: ImageArch, image_format: ImageFormat, patches: List[Patch] = [], symbols: List[Symbol] = [], handlers: Optional[List[Handler]] = []) -> None:
+    def __init__(self, entry_address: int, image_arch: ImageArch, image_format: ImageFormat, patches: List[Patch] = [], symbols: List[Symbol] = [], handlers: Optional[List[Handler]] = [], dma_buffers: Optional[List[DMABuffer]] = []) -> None:
         self.entry_address = entry_address
         self.handlers = handlers
         self.image_arch = image_arch
         self.image_format = image_format
         self.patches = patches
         self.symbols = symbols
+        self.dma_buffers = dma_buffers
 
     @staticmethod
     def from_dict(obj: Any) -> 'ImageConfig':
@@ -557,7 +558,8 @@ class ImageConfig:
         image_format = ImageFormat.from_dict(obj.get("image_format"))
         patches = from_list(Patch.from_dict, obj.get("patches"))
         symbols = from_list(Symbol.from_dict, obj.get("symbols"))
-        return ImageConfig(entry_address, image_arch, image_format, patches, symbols, handlers)
+        dma_buffers = from_union([from_none, lambda x: from_list(DMABuffer.from_dict, x)], obj.get("dma_buffers"))
+        return ImageConfig(entry_address, image_arch, image_format, patches, symbols, handlers, dma_buffers)
 
     def to_dict(self) -> dict:
         result: dict = {}
@@ -568,6 +570,7 @@ class ImageConfig:
         result["image_format"] = to_class(ImageFormat, self.image_format)
         result["patches"] = from_list(lambda x: to_class(Patch, x), self.patches)
         result["symbols"] = from_list(lambda x: to_class(Symbol, x), self.symbols)
+        result["dma_buffers"] = from_list(lambda x: to_class(DMABuffer, x), self.dma_buffers)
         return result
 
     def __repr__(self) -> str:
