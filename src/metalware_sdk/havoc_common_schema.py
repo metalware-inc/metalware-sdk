@@ -1,7 +1,6 @@
 from enum import Enum
-from typing import List, Optional, Any, Union, Dict, TypeVar, Callable, Type, cast
-import io, struct
-import json
+from typing import List, Optional, Any, Dict, Union, TypeVar, Callable, Type, cast
+
 
 T = TypeVar("T")
 EnumT = TypeVar("EnumT", bound=Enum)
@@ -178,6 +177,37 @@ class AnalysisResult:
         return result
 
 
+class DebugSessionID:
+    project_name: str
+    run_number: int
+    test_case_id: str
+
+    def __init__(self, project_name: str, run_number: int, test_case_id: str) -> None:
+        self.project_name = project_name
+        self.run_number = run_number
+        self.test_case_id = test_case_id
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'DebugSessionID':
+        assert isinstance(obj, dict)
+        project_name = from_str(obj.get("project_name"))
+        run_number = from_int(obj.get("run_number"))
+        test_case_id = from_str(obj.get("test_case_id"))
+        return DebugSessionID(project_name, run_number, test_case_id)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        result["project_name"] = from_str(self.project_name)
+        result["run_number"] = from_int(self.run_number)
+        result["test_case_id"] = from_str(self.test_case_id)
+        return result
+
+
+class Board(Enum):
+    CORTEX_M_GENERIC = "CortexMGeneric"
+    MSP430 = "Msp430"
+
+
 class MemoryFileSegment:
     """MemoryConfig
     
@@ -259,14 +289,14 @@ class Memory:
     memory_type: MemoryType
     size: int
 
-    def __init__(self, base_addr: int, size: int, memory_type: MemoryType, aliased_to: Optional[int] = None, file: Optional[MemoryFile] = None, fill: Optional[int] = None, executable: Optional[bool] = None) -> None:
+    def __init__(self, aliased_to: Optional[int], base_addr: int, executable: Optional[bool], file: Optional[MemoryFile], fill: Optional[int], memory_type: MemoryType, size: int) -> None:
+        self.aliased_to = aliased_to
         self.base_addr = base_addr
         self.executable = executable
-        self.size = size
-        self.memory_type = memory_type
-        self.aliased_to = aliased_to
         self.file = file
         self.fill = fill
+        self.memory_type = memory_type
+        self.size = size
 
     @staticmethod
     def from_dict(obj: Any) -> 'Memory':
@@ -278,7 +308,7 @@ class Memory:
         fill = from_union([from_none, from_int], obj.get("fill"))
         memory_type = MemoryType(obj.get("memory_type"))
         size = from_int(obj.get("size"))
-        return Memory(base_addr, size, memory_type, aliased_to, file, fill, executable)
+        return Memory(aliased_to, base_addr, executable, file, fill, memory_type, size)
 
     def to_dict(self) -> dict:
         result: dict = {}
@@ -297,24 +327,46 @@ class Memory:
 
 
 class DeviceConfig:
-    memory_layout: List[Memory]
+    board: Board
+    memory_layout: Dict[str, Memory]
+    nvic_allow_active_interrupt_pending: Optional[bool]
+    nvic_enable_nested_interrupts: Optional[bool]
+    nvic_interrupt_limit: Optional[int]
+    nvic_num_vecs: Optional[int]
 
-    def __init__(self, memory_layout: List[Memory]) -> None:
+    def __init__(self, board: Board, memory_layout: Dict[str, Memory], nvic_allow_active_interrupt_pending: Optional[bool], nvic_enable_nested_interrupts: Optional[bool], nvic_interrupt_limit: Optional[int], nvic_num_vecs: Optional[int]) -> None:
+        self.board = board
         self.memory_layout = memory_layout
+        self.nvic_allow_active_interrupt_pending = nvic_allow_active_interrupt_pending
+        self.nvic_enable_nested_interrupts = nvic_enable_nested_interrupts
+        self.nvic_interrupt_limit = nvic_interrupt_limit
+        self.nvic_num_vecs = nvic_num_vecs
 
     @staticmethod
     def from_dict(obj: Any) -> 'DeviceConfig':
         assert isinstance(obj, dict)
-        memory_layout = from_list(Memory.from_dict, obj.get("memory_layout"))
-        return DeviceConfig(memory_layout)
+        board = Board(obj.get("board"))
+        memory_layout = from_dict(Memory.from_dict, obj.get("memory_layout"))
+        nvic_allow_active_interrupt_pending = from_union([from_none, from_bool], obj.get("nvic_allow_active_interrupt_pending"))
+        nvic_enable_nested_interrupts = from_union([from_none, from_bool], obj.get("nvic_enable_nested_interrupts"))
+        nvic_interrupt_limit = from_union([from_int, from_none], obj.get("nvic_interrupt_limit"))
+        nvic_num_vecs = from_union([from_int, from_none], obj.get("nvic_num_vecs"))
+        return DeviceConfig(board, memory_layout, nvic_allow_active_interrupt_pending, nvic_enable_nested_interrupts, nvic_interrupt_limit, nvic_num_vecs)
 
     def to_dict(self) -> dict:
         result: dict = {}
-        result["memory_layout"] = from_list(lambda x: to_class(Memory, x), self.memory_layout)
+        result["board"] = to_enum(Board, self.board)
+        result["memory_layout"] = from_dict(lambda x: to_class(Memory, x), self.memory_layout)
+        if self.nvic_allow_active_interrupt_pending is not None:
+            result["nvic_allow_active_interrupt_pending"] = from_union([from_none, from_bool], self.nvic_allow_active_interrupt_pending)
+        if self.nvic_enable_nested_interrupts is not None:
+            result["nvic_enable_nested_interrupts"] = from_union([from_none, from_bool], self.nvic_enable_nested_interrupts)
+        if self.nvic_interrupt_limit is not None:
+            result["nvic_interrupt_limit"] = from_union([from_int, from_none], self.nvic_interrupt_limit)
+        if self.nvic_num_vecs is not None:
+            result["nvic_num_vecs"] = from_union([from_int, from_none], self.nvic_num_vecs)
         return result
 
-    def __repr__(self) -> str:
-        return json.dumps(self.to_dict(), indent=2)
 
 class FileMetadata:
     hash: str
@@ -361,6 +413,83 @@ class FormatMemoryLayoutRequest:
         result: dict = {}
         result["image_hash"] = from_str(self.image_hash)
         result["memory_layout"] = from_list(lambda x: to_class(Memory, x), self.memory_layout)
+        return result
+
+
+class TickKind(Enum):
+    FUZZED = "fuzzed"
+
+
+class Trigger:
+    addr: Optional[str]
+    every_nth_tick: Optional[Union[int, TickKind]]
+
+    def __init__(self, addr: Optional[str], every_nth_tick: Optional[Union[int, TickKind]]) -> None:
+        self.addr = addr
+        self.every_nth_tick = every_nth_tick
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'Trigger':
+        assert isinstance(obj, dict)
+        addr = from_union([from_str, from_none], obj.get("addr"))
+        every_nth_tick = from_union([from_int, TickKind, from_none], obj.get("every_nth_tick"))
+        return Trigger(addr, every_nth_tick)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        if self.addr is not None:
+            result["addr"] = from_union([from_str, from_none], self.addr)
+        if self.every_nth_tick is not None:
+            result["every_nth_tick"] = from_union([from_int, lambda x: to_enum(TickKind, x), from_none], self.every_nth_tick)
+        return result
+
+
+class FuzzerConfig:
+    fuzz_consumption_timeout: int
+    global_timer_scale: Optional[int]
+    """The number to multiply timer reload values by. Increasing this value causes timers to
+    execute less frequently.
+    """
+    instr_limit: Optional[int]
+    """The maximum number of blocks to execute before reporting a hang to the fuzzer."""
+
+    interrupt_interval: int
+    interrupt_triggers: Optional[Dict[str, Trigger]]
+    """Controls how interrupts are triggered by the emulator."""
+
+    use_access_contexts: Optional[bool]
+
+    def __init__(self, fuzz_consumption_timeout: int, global_timer_scale: Optional[int], instr_limit: Optional[int], interrupt_interval: int, interrupt_triggers: Optional[Dict[str, Trigger]], use_access_contexts: Optional[bool]) -> None:
+        self.fuzz_consumption_timeout = fuzz_consumption_timeout
+        self.global_timer_scale = global_timer_scale
+        self.instr_limit = instr_limit
+        self.interrupt_interval = interrupt_interval
+        self.interrupt_triggers = interrupt_triggers
+        self.use_access_contexts = use_access_contexts
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'FuzzerConfig':
+        assert isinstance(obj, dict)
+        fuzz_consumption_timeout = from_int(obj.get("fuzz_consumption_timeout"))
+        global_timer_scale = from_union([from_int, from_none], obj.get("global_timer_scale"))
+        instr_limit = from_union([from_int, from_none], obj.get("instr_limit"))
+        interrupt_interval = from_int(obj.get("interrupt_interval"))
+        interrupt_triggers = from_union([lambda x: from_dict(Trigger.from_dict, x), from_none], obj.get("interrupt_triggers"))
+        use_access_contexts = from_union([from_none, from_bool], obj.get("use_access_contexts"))
+        return FuzzerConfig(fuzz_consumption_timeout, global_timer_scale, instr_limit, interrupt_interval, interrupt_triggers, use_access_contexts)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        result["fuzz_consumption_timeout"] = from_int(self.fuzz_consumption_timeout)
+        if self.global_timer_scale is not None:
+            result["global_timer_scale"] = from_union([from_int, from_none], self.global_timer_scale)
+        if self.instr_limit is not None:
+            result["instr_limit"] = from_union([from_int, from_none], self.instr_limit)
+        result["interrupt_interval"] = from_int(self.interrupt_interval)
+        if self.interrupt_triggers is not None:
+            result["interrupt_triggers"] = from_union([lambda x: from_dict(lambda x: to_class(Trigger, x), x), from_none], self.interrupt_triggers)
+        if self.use_access_contexts is not None:
+            result["use_access_contexts"] = from_union([from_none, from_bool], self.use_access_contexts)
         return result
 
 
@@ -456,7 +585,7 @@ class ImageFormat:
     elf: Optional[str]
     raw: Optional[RawImage]
 
-    def __init__(self, elf: Optional[str] = None, raw: Optional[RawImage] = None) -> None:
+    def __init__(self, elf: Optional[str], raw: Optional[RawImage]) -> None:
         self.elf = elf
         self.raw = raw
 
@@ -508,74 +637,88 @@ class Patch:
 class Symbol:
     address: int
     name: str
-    size: int
 
-    def __init__(self, address: int, name: str, size: int) -> None:
+    def __init__(self, address: int, name: str) -> None:
         self.address = address
         self.name = name
-        self.size = size
 
     @staticmethod
     def from_dict(obj: Any) -> 'Symbol':
         assert isinstance(obj, dict)
         address = from_int(obj.get("address"))
         name = from_str(obj.get("name"))
-        size = from_int(obj.get("size"))
-        return Symbol(address, name, size)
+        return Symbol(address, name)
 
     def to_dict(self) -> dict:
         result: dict = {}
         result["address"] = from_int(self.address)
         result["name"] = from_str(self.name)
-        result["size"] = from_int(self.size)
         return result
 
 
 class ImageConfig:
     dma_buffers: Optional[List[DMABuffer]]
     entry_address: int
-    handlers: Optional[List[Handler]]
+    handlers: List[Handler]
     image_arch: ImageArch
     image_format: ImageFormat
     patches: List[Patch]
     symbols: List[Symbol]
 
-    def __init__(self, entry_address: int, image_arch: ImageArch, image_format: ImageFormat, patches: List[Patch] = [], symbols: List[Symbol] = [], handlers: Optional[List[Handler]] = [], dma_buffers: Optional[List[DMABuffer]] = []) -> None:
+    def __init__(self, dma_buffers: Optional[List[DMABuffer]], entry_address: int, handlers: List[Handler], image_arch: ImageArch, image_format: ImageFormat, patches: List[Patch], symbols: List[Symbol]) -> None:
+        self.dma_buffers = dma_buffers
         self.entry_address = entry_address
         self.handlers = handlers
         self.image_arch = image_arch
         self.image_format = image_format
         self.patches = patches
         self.symbols = symbols
-        self.dma_buffers = dma_buffers
 
     @staticmethod
     def from_dict(obj: Any) -> 'ImageConfig':
         assert isinstance(obj, dict)
+        dma_buffers = from_union([from_none, lambda x: from_list(DMABuffer.from_dict, x)], obj.get("dma_buffers"))
         entry_address = from_int(obj.get("entry_address"))
-        handlers = from_union([from_none, lambda x: from_list(Handler.from_dict, x)], obj.get("handlers"))
+        handlers = from_list(Handler.from_dict, obj.get("handlers"))
         image_arch = ImageArch(obj.get("image_arch"))
         image_format = ImageFormat.from_dict(obj.get("image_format"))
         patches = from_list(Patch.from_dict, obj.get("patches"))
         symbols = from_list(Symbol.from_dict, obj.get("symbols"))
-        dma_buffers = from_union([from_none, lambda x: from_list(DMABuffer.from_dict, x)], obj.get("dma_buffers"))
-        return ImageConfig(entry_address, image_arch, image_format, patches, symbols, handlers, dma_buffers)
+        return ImageConfig(dma_buffers, entry_address, handlers, image_arch, image_format, patches, symbols)
 
     def to_dict(self) -> dict:
         result: dict = {}
+        if self.dma_buffers is not None:
+            result["dma_buffers"] = from_union([from_none, lambda x: from_list(lambda x: to_class(DMABuffer, x), x)], self.dma_buffers)
         result["entry_address"] = from_int(self.entry_address)
-        if self.handlers is not None:
-            result["handlers"] = from_union([from_none, lambda x: from_list(lambda x: to_class(Handler, x), x)], self.handlers)
+        result["handlers"] = from_list(lambda x: to_class(Handler, x), self.handlers)
         result["image_arch"] = to_enum(ImageArch, self.image_arch)
         result["image_format"] = to_class(ImageFormat, self.image_format)
         result["patches"] = from_list(lambda x: to_class(Patch, x), self.patches)
         result["symbols"] = from_list(lambda x: to_class(Symbol, x), self.symbols)
-        if self.dma_buffers is not None:
-          result["dma_buffers"] = from_union([from_none, lambda x: from_list(lambda x: to_class(DMABuffer, x), x)], self.dma_buffers)
         return result
 
-    def __repr__(self) -> str:
-        return json.dumps(self.to_dict(), indent=2)
+
+class InferConfigRequest:
+    board: Board
+    file_hash: str
+
+    def __init__(self, board: Board, file_hash: str) -> None:
+        self.board = board
+        self.file_hash = file_hash
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'InferConfigRequest':
+        assert isinstance(obj, dict)
+        board = Board(obj.get("board"))
+        file_hash = from_str(obj.get("file_hash"))
+        return InferConfigRequest(board, file_hash)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        result["board"] = to_enum(Board, self.board)
+        result["file_hash"] = from_str(self.file_hash)
+        return result
 
 
 class InferredConfig:
@@ -600,83 +743,41 @@ class InferredConfig:
         return result
 
 
-class FuzzerConfig:
-    fuzz_consumption_timeout: int
-    interrupt_interval: int
-
-    def __init__(self, fuzz_consumption_timeout: int, interrupt_interval: int) -> None:
-        self.fuzz_consumption_timeout = fuzz_consumption_timeout
-        self.interrupt_interval = interrupt_interval
-
-    @staticmethod
-    def from_dict(obj: Any) -> 'FuzzerConfig':
-        assert isinstance(obj, dict)
-        fuzz_consumption_timeout = from_int(obj.get("fuzz_consumption_timeout"))
-        interrupt_interval = from_int(obj.get("interrupt_interval"))
-        return FuzzerConfig(fuzz_consumption_timeout, interrupt_interval)
-
-    def to_dict(self) -> dict:
-        result: dict = {}
-        result["fuzz_consumption_timeout"] = from_int(self.fuzz_consumption_timeout)
-        result["interrupt_interval"] = from_int(self.interrupt_interval)
-        return result
-
-
-class ProjectConfig:
-    device_config: DeviceConfig
-    fuzzer_config: Optional[FuzzerConfig]
-
-    def __init__(self, device_config: DeviceConfig, fuzzer_config: Optional[FuzzerConfig] = None) -> None:
-        self.device_config = device_config
-        self.fuzzer_config = fuzzer_config
-
-    @staticmethod
-    def from_dict(obj: Any) -> 'ProjectConfig':
-        assert isinstance(obj, dict)
-        device_config = DeviceConfig.from_dict(obj.get("device_config"))
-        fuzzer_config = from_union([FuzzerConfig.from_dict, from_none], obj.get("fuzzer_config"))
-        return ProjectConfig(device_config, fuzzer_config)
-
-    def to_dict(self) -> dict:
-        result: dict = {}
-        result["device_config"] = to_class(DeviceConfig, self.device_config)
-        if self.fuzzer_config is not None:
-            result["fuzzer_config"] = from_union([lambda x: to_class(FuzzerConfig, x), from_none], self.fuzzer_config)
-        return result
-
-
 class RunConfig:
+    device_hash: str
     dry_run: bool
-    fuzzer_config: Optional[FuzzerConfig]
-    image_name: str
+    fuzzer_hash: str
+    image_hash: str
     instance_count: int
-    image_config_hash: Optional[str]
-    project_config_hash: Optional[str]
+    project_id: str
 
-    def __init__(self, image_name: str, instance_count: int = 1, dry_run: bool = False, fuzzer_config: Optional[FuzzerConfig] = None) -> None:
+    def __init__(self, device_hash: str, dry_run: bool, fuzzer_hash: str, image_hash: str, instance_count: int, project_id: str) -> None:
+        self.device_hash = device_hash
         self.dry_run = dry_run
-        self.fuzzer_config = fuzzer_config
-        self.image_name = image_name
+        self.fuzzer_hash = fuzzer_hash
+        self.image_hash = image_hash
         self.instance_count = instance_count
-        self.image_config_hash = None
-        self.project_config_hash = None
+        self.project_id = project_id
 
     @staticmethod
     def from_dict(obj: Any) -> 'RunConfig':
         assert isinstance(obj, dict)
+        device_hash = from_str(obj.get("device_hash"))
         dry_run = from_bool(obj.get("dry_run"))
-        fuzzer_config = from_union([FuzzerConfig.from_dict, from_none], obj.get("fuzzer_config"))
-        image_name = from_str(obj.get("image_name"))
+        fuzzer_hash = from_str(obj.get("fuzzer_hash"))
+        image_hash = from_str(obj.get("image_hash"))
         instance_count = from_int(obj.get("instance_count"))
-        return RunConfig(image_name, instance_count, dry_run, fuzzer_config)
+        project_id = from_str(obj.get("project_id"))
+        return RunConfig(device_hash, dry_run, fuzzer_hash, image_hash, instance_count, project_id)
 
     def to_dict(self) -> dict:
         result: dict = {}
+        result["device_hash"] = from_str(self.device_hash)
         result["dry_run"] = from_bool(self.dry_run)
-        if self.fuzzer_config is not None:
-            result["fuzzer_config"] = from_union([lambda x: to_class(FuzzerConfig, x), from_none], self.fuzzer_config)
-        result["image_name"] = from_str(self.image_name)
+        result["fuzzer_hash"] = from_str(self.fuzzer_hash)
+        result["image_hash"] = from_str(self.image_hash)
         result["instance_count"] = from_int(self.instance_count)
+        result["project_id"] = from_str(self.project_id)
         return result
 
 
@@ -859,7 +960,7 @@ class DMADescriptorHead:
     @staticmethod
     def from_dict(obj: Any) -> 'DMADescriptorHead':
         assert isinstance(obj, dict)
-        addr = int(obj.get("addr").replace("+", ""), 16)
+        addr = from_int(obj.get("addr"))
         is_buf_end_ptr = from_union([from_none, from_bool], obj.get("is_buf_end_ptr"))
         known_values = from_union([lambda x: from_list(lambda x: from_union([from_int, from_str], x), x), from_none], obj.get("known_values"))
         to = DMADescriptorField.from_dict(obj.get("to"))
@@ -887,11 +988,7 @@ class DMAConfig:
     @staticmethod
     def from_dict(obj: Any) -> 'DMAConfig':
         assert isinstance(obj, dict)
-        buffers = {}
-        for addr, srange in obj.get("buffers", {}).items():
-          min = srange['min'].removeprefix("+")
-          max = srange['max'].removeprefix("+")
-          buffers[addr.removeprefix("+")] = SizeRange(int(min, 16), int(max, 16))
+        buffers = from_union([lambda x: from_dict(SizeRange.from_dict, x), from_none], obj.get("buffers"))
         descriptors = from_list(DMADescriptorHead.from_dict, obj.get("descriptors"))
         return DMAConfig(buffers, descriptors)
 
@@ -1033,186 +1130,62 @@ class RunStatus(Enum):
 
 class RunSummary:
     created_at: int
-    modified_at: int
+    finished_at: int
     status: RunStatus
 
-    def __init__(self, created_at: int, modified_at: int, status: RunStatus) -> None:
+    def __init__(self, created_at: int, finished_at: int, status: RunStatus) -> None:
         self.created_at = created_at
-        self.modified_at = modified_at
+        self.finished_at = finished_at
         self.status = status
 
     @staticmethod
     def from_dict(obj: Any) -> 'RunSummary':
         assert isinstance(obj, dict)
         created_at = from_int(obj.get("created_at"))
-        modified_at = from_int(obj.get("modified_at"))
+        finished_at = from_int(obj.get("finished_at"))
         status = RunStatus(obj.get("status"))
-        return RunSummary(created_at, modified_at, status)
+        return RunSummary(created_at, finished_at, status)
 
     def to_dict(self) -> dict:
         result: dict = {}
         result["created_at"] = from_int(self.created_at)
-        result["modified_at"] = from_int(self.modified_at)
+        result["finished_at"] = from_int(self.finished_at)
         result["status"] = to_enum(RunStatus, self.status)
         return result
 
 
-class Symbol:
-    address: int
-    name: str
-    size: int
-
-    def __init__(self, address: int, name: str, size: int) -> None:
-        self.address = address
-        self.name = name
-        self.size = size
-
-    @staticmethod
-    def from_dict(obj: Any) -> 'Symbol':
-        assert isinstance(obj, dict)
-        address = from_int(obj.get("address"))
-        name = from_str(obj.get("name"))
-        size = from_int(obj.get("size"))
-        return Symbol(address, name, size)
-
-    def to_dict(self) -> dict:
-        result: dict = {}
-        result["address"] = from_int(self.address)
-        result["name"] = from_str(self.name)
-        result["size"] = from_int(self.size)
-        return result
-
-
-class TraceSummaryEntry:
-    exit_pc: int
-    exit_reason: str
-    input_label: str
-    num_blocks: int
-    timestamp: str
-
-    def __init__(self, exit_pc: int, exit_reason: str, input_label: str, num_blocks: int, timestamp: str) -> None:
-        self.exit_pc = exit_pc
-        self.exit_reason = exit_reason
-        self.input_label = input_label
-        self.num_blocks = num_blocks
-        self.timestamp = timestamp
-
-    @staticmethod
-    def from_dict(obj: Any) -> 'TraceSummaryEntry':
-        assert isinstance(obj, dict)
-        exit_pc = from_int(obj.get("exit_pc"))
-        exit_reason = from_str(obj.get("exit_reason"))
-        input_label = from_str(obj.get("input_label"))
-        num_blocks = from_int(obj.get("num_blocks"))
-        timestamp = from_str(obj.get("timestamp"))
-        return TraceSummaryEntry(exit_pc, exit_reason, input_label, num_blocks, timestamp)
-
-    def to_dict(self) -> dict:
-        result: dict = {}
-        result["exit_pc"] = from_int(self.exit_pc)
-        result["exit_reason"] = from_str(self.exit_reason)
-        result["input_label"] = from_str(self.input_label)
-        result["num_blocks"] = from_int(self.num_blocks)
-        result["timestamp"] = from_str(self.timestamp)
-        return result
-
-
-class TraceSummary:
-    entries: List[TraceSummaryEntry]
-
-    def __init__(self, entries: List[TraceSummaryEntry]) -> None:
-        self.entries = entries
-
-    @staticmethod
-    def from_dict(obj: Any) -> 'TraceSummary':
-        assert isinstance(obj, dict)
-        entries = from_list(TraceSummaryEntry.from_dict, obj.get("entries"))
-        return TraceSummary(entries)
-
-    def to_dict(self) -> dict:
-        result: dict = {}
-        result["entries"] = from_list(lambda x: to_class(TraceSummaryEntry, x), self.entries)
-        return result
-
 class Testcase:
-    input_id: str
-    exit_reason: str
     exit_pc: int
+    exit_reason: str
+    input_id: str
     num_blocks: int
     timestamp: str
 
-    def __init__(self, input_id: str, exit_reason: str, exit_pc: int, num_blocks: int, timestamp: str) -> None:
-        self.input_id = input_id
-        self.exit_reason = exit_reason
+    def __init__(self, exit_pc: int, exit_reason: str, input_id: str, num_blocks: int, timestamp: str) -> None:
         self.exit_pc = exit_pc
+        self.exit_reason = exit_reason
+        self.input_id = input_id
         self.num_blocks = num_blocks
         self.timestamp = timestamp
 
     @staticmethod
     def from_dict(obj: Any) -> 'Testcase':
         assert isinstance(obj, dict)
-        input_id = from_str(obj.get("input_id"))
-        exit_reason = from_str(obj.get("exit_reason"))
         exit_pc = from_int(obj.get("exit_pc"))
+        exit_reason = from_str(obj.get("exit_reason"))
+        input_id = from_str(obj.get("input_id"))
         num_blocks = from_int(obj.get("num_blocks"))
         timestamp = from_str(obj.get("timestamp"))
-        return Testcase(input_id, exit_reason, exit_pc, num_blocks, timestamp)
+        return Testcase(exit_pc, exit_reason, input_id, num_blocks, timestamp)
 
     def to_dict(self) -> dict:
         result: dict = {}
-        result["input_id"] = from_str(self.input_id)
-        result["exit_reason"] = from_str(self.exit_reason)
         result["exit_pc"] = from_int(self.exit_pc)
+        result["exit_reason"] = from_str(self.exit_reason)
+        result["input_id"] = from_str(self.input_id)
         result["num_blocks"] = from_int(self.num_blocks)
         result["timestamp"] = from_str(self.timestamp)
         return result
-
-    def __repr__(self) -> str:
-        return f"Testcase(input_id='{self.input_id}', exit_reason='{self.exit_reason}', exit_pc={hex(self.exit_pc)}, num_blocks={self.num_blocks}, timestamp='{self.timestamp}')"
-
-class TestcaseInput:
-    # A channel is a (fuzzed) memory location with a corresponding byte array.
-    channels: Dict[int, bytes]
-
-    def __init__(self, channels: Dict[int, bytes]) -> None:
-      self.channels = channels
-
-    def __repr__(self) -> str:
-      header = "\n Address   " + "| Data\n"
-      header += "-----------|" + ("-" * 20) + "\n"
-      content = "\n".join([f"{hex(addr)} | {' '.join([f'{b:02x}' for b in data])}" for addr, data in self.channels.items()])
-      return header + content
-
-    @staticmethod
-    def from_bytes(bytes: bytes) -> 'TestcaseInput':
-        reader = io.BytesIO(bytes)
-        magic = reader.read(4)
-        if magic != b'hav\x02':
-          raise ValueError("Invalid version: " + str(magic))
-
-        try:
-          num_channels = struct.unpack('<I', reader.read(4))[0]
-          if num_channels > 0x10000:
-            raise ValueError("Too many channels")
-        except struct.error:
-          raise ValueError("Invalid input: failed to read number of channels")
-
-        channel_headers = []
-        for i in range(num_channels):
-          try:
-            channel_addr = struct.unpack('<Q', reader.read(8))[0]
-            channel_len = struct.unpack('<Q', reader.read(8))[0]
-            channel_headers.append((channel_addr, channel_len))
-          except struct.error:
-            raise ValueError("Invalid input: failed to read channel header")
-
-        channels = {}
-        for channel_addr, channel_len in channel_headers:
-          if channel_len > 0x100000:
-            raise ValueError("Channel too long")
-          channels[channel_addr] = reader.read(channel_len)
-
-        return TestcaseInput(channels)
 
 
 class UploadImageRequest:
@@ -1240,29 +1213,33 @@ class UploadImageRequest:
 class HavocCommonSchema:
     analysis_result: AnalysisResult
     classified_crash: ClassifiedCrash
+    debug_session_id: DebugSessionID
     device_config: DeviceConfig
     file_metadata: FileMetadata
     format_memory_layout_request: FormatMemoryLayoutRequest
+    fuzzer_config: FuzzerConfig
     image: ImageConfig
+    infer_config_request: InferConfigRequest
     inference_response: InferredConfig
-    project_config: ProjectConfig
     run_config: RunConfig
     run_stats: RunStats
     run_summary: RunSummary
     symbol: Symbol
-    trace_summary: TraceSummary
+    trace_summary: List[Testcase]
     unclassified_crash: UnclassifiedCrash
     upload_image_request: UploadImageRequest
 
-    def __init__(self, analysis_result: AnalysisResult, classified_crash: ClassifiedCrash, device_config: DeviceConfig, file_metadata: FileMetadata, format_memory_layout_request: FormatMemoryLayoutRequest, image: ImageConfig, inference_response: InferredConfig, project_config: ProjectConfig, run_config: RunConfig, run_stats: RunStats, run_summary: RunSummary, symbol: Symbol, trace_summary: TraceSummary, unclassified_crash: UnclassifiedCrash, upload_image_request: UploadImageRequest) -> None:
+    def __init__(self, analysis_result: AnalysisResult, classified_crash: ClassifiedCrash, debug_session_id: DebugSessionID, device_config: DeviceConfig, file_metadata: FileMetadata, format_memory_layout_request: FormatMemoryLayoutRequest, fuzzer_config: FuzzerConfig, image: ImageConfig, infer_config_request: InferConfigRequest, inference_response: InferredConfig, run_config: RunConfig, run_stats: RunStats, run_summary: RunSummary, symbol: Symbol, trace_summary: List[Testcase], unclassified_crash: UnclassifiedCrash, upload_image_request: UploadImageRequest) -> None:
         self.analysis_result = analysis_result
         self.classified_crash = classified_crash
+        self.debug_session_id = debug_session_id
         self.device_config = device_config
         self.file_metadata = file_metadata
         self.format_memory_layout_request = format_memory_layout_request
+        self.fuzzer_config = fuzzer_config
         self.image = image
+        self.infer_config_request = infer_config_request
         self.inference_response = inference_response
-        self.project_config = project_config
         self.run_config = run_config
         self.run_stats = run_stats
         self.run_summary = run_summary
@@ -1276,36 +1253,40 @@ class HavocCommonSchema:
         assert isinstance(obj, dict)
         analysis_result = AnalysisResult.from_dict(obj.get("analysis_result"))
         classified_crash = ClassifiedCrash.from_dict(obj.get("classified_crash"))
+        debug_session_id = DebugSessionID.from_dict(obj.get("debug_session_id"))
         device_config = DeviceConfig.from_dict(obj.get("device_config"))
         file_metadata = FileMetadata.from_dict(obj.get("file_metadata"))
         format_memory_layout_request = FormatMemoryLayoutRequest.from_dict(obj.get("format_memory_layout_request"))
+        fuzzer_config = FuzzerConfig.from_dict(obj.get("fuzzer_config"))
         image = ImageConfig.from_dict(obj.get("image"))
+        infer_config_request = InferConfigRequest.from_dict(obj.get("infer_config_request"))
         inference_response = InferredConfig.from_dict(obj.get("inference_response"))
-        project_config = ProjectConfig.from_dict(obj.get("project_config"))
         run_config = RunConfig.from_dict(obj.get("run_config"))
         run_stats = RunStats.from_dict(obj.get("run_stats"))
         run_summary = RunSummary.from_dict(obj.get("run_summary"))
         symbol = Symbol.from_dict(obj.get("symbol"))
-        trace_summary = TraceSummary.from_dict(obj.get("trace_summary"))
+        trace_summary = from_list(Testcase.from_dict, obj.get("trace_summary"))
         unclassified_crash = UnclassifiedCrash.from_dict(obj.get("unclassified_crash"))
         upload_image_request = UploadImageRequest.from_dict(obj.get("upload_image_request"))
-        return HavocCommonSchema(analysis_result, classified_crash, device_config, file_metadata, format_memory_layout_request, image, inference_response, project_config, run_config, run_stats, run_summary, symbol, trace_summary, unclassified_crash, upload_image_request)
+        return HavocCommonSchema(analysis_result, classified_crash, debug_session_id, device_config, file_metadata, format_memory_layout_request, fuzzer_config, image, infer_config_request, inference_response, run_config, run_stats, run_summary, symbol, trace_summary, unclassified_crash, upload_image_request)
 
     def to_dict(self) -> dict:
         result: dict = {}
         result["analysis_result"] = to_class(AnalysisResult, self.analysis_result)
         result["classified_crash"] = to_class(ClassifiedCrash, self.classified_crash)
+        result["debug_session_id"] = to_class(DebugSessionID, self.debug_session_id)
         result["device_config"] = to_class(DeviceConfig, self.device_config)
         result["file_metadata"] = to_class(FileMetadata, self.file_metadata)
         result["format_memory_layout_request"] = to_class(FormatMemoryLayoutRequest, self.format_memory_layout_request)
+        result["fuzzer_config"] = to_class(FuzzerConfig, self.fuzzer_config)
         result["image"] = to_class(ImageConfig, self.image)
+        result["infer_config_request"] = to_class(InferConfigRequest, self.infer_config_request)
         result["inference_response"] = to_class(InferredConfig, self.inference_response)
-        result["project_config"] = to_class(ProjectConfig, self.project_config)
         result["run_config"] = to_class(RunConfig, self.run_config)
         result["run_stats"] = to_class(RunStats, self.run_stats)
         result["run_summary"] = to_class(RunSummary, self.run_summary)
         result["symbol"] = to_class(Symbol, self.symbol)
-        result["trace_summary"] = to_class(TraceSummary, self.trace_summary)
+        result["trace_summary"] = from_list(lambda x: to_class(Testcase, x), self.trace_summary)
         result["unclassified_crash"] = to_class(UnclassifiedCrash, self.unclassified_crash)
         result["upload_image_request"] = to_class(UploadImageRequest, self.upload_image_request)
         return result

@@ -1,9 +1,21 @@
 from metalware_sdk.havoc_common_schema import *
+from metalware_sdk.havoc_extras import TestcaseInput
 import requests
 import base64
 from typing import Optional, Tuple, List, Dict, Union
 from dataclasses import dataclass
 import os
+
+"""
+client = HavocClient(HAVOC_ENDPOINT)
+p: Project = client.create_project(project_name)
+p.set_device_config(device_config)
+p.set_fuzzer_config(fuzzer_config)
+p.add_image_config(image_config)
+p.get_runs()
+
+p.start_run(image_name="default", dry_run=True)
+"""
 
 @dataclass
 class HavocClient:
@@ -48,17 +60,17 @@ class HavocClient:
     else:
       raise RuntimeError(f"Upload failed: {result.get('Err', 'Unknown error')}")
 
-  def infer_config(self, file_hash: str) -> [DeviceConfig, ImageConfig]:
+  def infer_config(self, file_hash: str, board: Board = Board.CORTEX_M_GENERIC) -> InferredConfig:
     resp = self._make_request(
       'POST',
-      f'/infer-memory-layout-and-entry',
-      json=file_hash
+      f'/infer-config',
+      json=InferConfigRequest(board=board, file_hash=file_hash).to_dict()
     )
     
     result = resp.json()
     if isinstance(result, dict) and 'Ok' in result:
       ic = InferredConfig.from_dict(result['Ok'])
-      return ic.device_config, ic.image_config
+      return ic
     else: raise RuntimeError(f"Memory config inference failed: {result.get('Err', 'Unknown error')}")
 
   def create_project_image(self, project_name: str, image_name: str, image_config: ImageConfig) -> str:
@@ -124,15 +136,12 @@ class HavocClient:
     if isinstance(result, dict) and 'Err' in result:
       raise RuntimeError(f"Image deletion failed: {result['Err']}")
 
-  def create_project(self, project_name: str, config: ProjectConfig, overwrite: bool = False) -> None:
+  def create_project(self, project_name: str, overwrite: bool = False) -> None:
     resp = self._make_request(
       'POST',
       '/create-project',
-      params={
-        'project_name': project_name,
-        'overwrite': str(overwrite).lower()
-      },
-      json=config.to_dict()
+      json=project_name,
+      params={'overwrite': str(overwrite).lower()}
     )
     
     result = resp.json()
@@ -174,6 +183,7 @@ class HavocClient:
     if isinstance(result, dict) and 'Err' in result:
       raise RuntimeError(f"Project deletion failed: {result['Err']}")
 
+  """
   def get_project_config(self, project_name: str) -> ProjectConfig:
     resp = self._make_request(
       'GET',
@@ -196,6 +206,37 @@ class HavocClient:
     if isinstance(result, dict) and 'Err' in result:
       raise RuntimeError(f"Project config setting failed: {result['Err']}")
     else: return result['Ok']
+  """
+  def set_device_config(self, project_name: str, device_config: DeviceConfig) -> None:
+    resp = self._make_request(
+      'POST',
+      f'/project/{project_name}/device-config',
+      json=device_config.to_dict()
+    )
+    
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Device config setting failed: {result['Err']}")
+    else: return result['Ok']
+
+  def set_fuzzer_config(self, project_name: str, fuzzer_config: FuzzerConfig) -> None:
+    resp = self._make_request(
+      'POST',
+      f'/project/{project_name}/fuzzer-config',
+      json=fuzzer_config.to_dict()
+    )
+
+    result = resp.json()
+    if isinstance(result, dict) and 'Err' in result:
+      raise RuntimeError(f"Fuzzer config setting failed: {result['Err']}")
+    else: return result['Ok']
+
+  def add_image_config(self, project_name: str, image_config: ImageConfig) -> None:
+    resp = self._make_request(
+      'POST',
+      f'/project/{project_name}/image-config',
+      json=image_config.to_dict()
+    )
 
   def start_run(self, project_name: str, config: RunConfig) -> int:
     resp = self._make_request(
